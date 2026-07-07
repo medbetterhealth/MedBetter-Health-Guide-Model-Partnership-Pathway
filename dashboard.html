@@ -9,9 +9,9 @@
   *{margin:0;padding:0;box-sizing:border-box;}
   body{font-family:'Geist',sans-serif;background:#fff;color:#1a2b3c;}
 
-  .topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 32px;border-bottom:1px solid #e6ebf0;position:sticky;top:0;background:#fff;z-index:50;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 32px;border-bottom:1px solid #e6ebf0;position:sticky;top:0;background:#fff;z-index:50;gap:12px;flex-wrap:wrap;}
   .tb-left{display:flex;align-items:center;gap:14px;}
-  .tb-logo{width:40px;height:40px;border-radius:9px;background:linear-gradient(135deg,#0a3d6e,#d12128);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;}
+  .tb-logo-img{height:36px;width:auto;display:block;}
   .tb-org{font-weight:600;font-size:16px;color:#0a3d6e;}
   .tb-sub{font-size:12px;color:#8ca0b3;}
   .tb-right{display:flex;align-items:center;gap:12px;}
@@ -39,14 +39,15 @@
 
   .referral-source{display:inline-flex;align-items:center;gap:8px;background:#eef8f3;border:1.5px solid #b6e3ce;color:#1a5c42;font-weight:600;font-size:13px;padding:8px 16px;border-radius:20px;margin-bottom:24px;}
 
-  @media(max-width:820px){.kpi-grid{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:820px){.kpi-grid{grid-template-columns:repeat(2,1fr);} .wrap{padding:24px 16px 50px;} .topbar{padding:14px 18px;}}
+  @media(max-width:480px){.kpi-grid{grid-template-columns:1fr;} .page-title{font-size:22px;} .tb-right{width:100%;justify-content:flex-end;}}
 </style>
 </head>
 <body>
 
 <div class="topbar">
   <div class="tb-left">
-    <div class="tb-logo">G</div>
+    <img class="tb-logo-img" src="https://medbetterhealth.org/wp-content/uploads/2025/01/medbetter_logo.svg" alt="MedBetterHealth">
     <div><div class="tb-org" id="orgName">Your Company</div><div class="tb-sub">Partner Referral Dashboard</div></div>
   </div>
   <div class="tb-right">
