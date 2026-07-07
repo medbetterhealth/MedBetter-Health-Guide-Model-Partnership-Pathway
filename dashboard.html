@@ -23,11 +23,12 @@
   .page-sub{font-size:14px;color:#8ca0b3;margin-bottom:26px;}
 
   .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px;}
-  .kpi{border:1px solid #e6ebf0;border-radius:12px;padding:18px;border-top:4px solid #0a3d6e;}
+  .kpi{border:1px solid #e6ebf0;border-radius:12px;padding:16px;border-top:4px solid #0a3d6e;}
   .kpi.approved{border-top-color:#1d9e75;}
-  .kpi .kl{font-size:11px;font-weight:700;text-transform:uppercase;color:#8ca0b3;letter-spacing:.4px;}
-  .kpi .kv{font-size:32px;font-weight:700;color:#1a2b3c;margin-top:8px;}
-  .kpi .ks{font-size:11.5px;color:#8ca0b3;margin-top:4px;}
+  .kpi.denied{border-top-color:#d12128;}
+  .kpi.warn{border-top-color:#f57c00;}
+  .kpi .kl{font-size:10.5px;font-weight:700;text-transform:uppercase;color:#8ca0b3;letter-spacing:.4px;}
+  .kpi .kv{font-size:28px;font-weight:700;color:#1a2b3c;margin-top:6px;}
 
   .panel{border:1px solid #e6ebf0;border-radius:16px;padding:24px;margin-bottom:20px;}
   .panel h3{font-size:17px;font-weight:700;color:#0a3d6e;margin-bottom:4px;}
@@ -38,6 +39,17 @@
   .empty-state p{font-size:13.5px;line-height:1.6;max-width:420px;margin:0 auto;}
 
   .referral-source{display:inline-flex;align-items:center;gap:8px;background:#eef8f3;border:1.5px solid #b6e3ce;color:#1a5c42;font-weight:600;font-size:13px;padding:8px 16px;border-radius:20px;margin-bottom:24px;}
+
+  table.referral-table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  table.referral-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#8ca0b3;padding:8px 10px;border-bottom:1.5px solid #e6ebf0;}
+  table.referral-table td{padding:10px;border-bottom:1px solid #f0f3f6;color:#243b53;}
+  table.referral-table tr:last-child td{border-bottom:none;}
+  .status-pill{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:12px;white-space:nowrap;}
+  .status-approved{background:#eafaf1;color:#0a5c3f;}
+  .status-denied{background:#fdecec;color:#8a1a1f;}
+  .status-scheduled{background:#eef4fa;color:#0a3d6e;}
+  .status-submittedToMedicare{background:#f1eefb;color:#4a2d8e;}
+  .status-notInterested,.status-noDementia,.status-unreachable{background:#f1f5f9;color:#5f7387;}
 
   @media(max-width:820px){.kpi-grid{grid-template-columns:repeat(2,1fr);} .wrap{padding:24px 16px 50px;} .topbar{padding:14px 18px;}}
   @media(max-width:480px){.kpi-grid{grid-template-columns:1fr;} .page-title{font-size:22px;} .tb-right{width:100%;justify-content:flex-end;}}
@@ -58,61 +70,130 @@
 
 <div class="wrap">
   <div class="page-title">Referral Dashboard</div>
-  <div class="page-sub">Track every referral you send, in real time.</div>
+  <div class="page-sub">Track every referral submitted under your company, in real time.</div>
 
   <div class="referral-source">📁 Referral Source: <span id="referralSourceName">—</span></div>
 
   <div class="kpi-grid">
     <div class="kpi">
       <div class="kl">Total Referrals</div>
-      <div class="kv" id="statReferrals">0</div>
-      <div class="ks">All-time submitted</div>
+      <div class="kv" id="statTotal">0</div>
     </div>
     <div class="kpi approved">
       <div class="kl">Approved</div>
       <div class="kv" id="statApproved">0</div>
-      <div class="ks">Approved by Medicare</div>
     </div>
     <div class="kpi">
-      <div class="kl">Pending</div>
-      <div class="kv" id="statPending">0</div>
-      <div class="ks">Awaiting review</div>
+      <div class="kl">Submitted to Medicare</div>
+      <div class="kv" id="statSubmittedToMedicare">0</div>
     </div>
     <div class="kpi">
-      <div class="kl">Conversion Rate</div>
-      <div class="kv" id="statConversion">—</div>
-      <div class="ks">Approved / submitted</div>
+      <div class="kl">Scheduled</div>
+      <div class="kv" id="statScheduled">0</div>
+    </div>
+    <div class="kpi denied">
+      <div class="kl">Denied</div>
+      <div class="kv" id="statDenied">0</div>
+    </div>
+    <div class="kpi warn">
+      <div class="kl">Not Interested</div>
+      <div class="kv" id="statNotInterested">0</div>
+    </div>
+    <div class="kpi warn">
+      <div class="kl">No Dementia</div>
+      <div class="kv" id="statNoDementia">0</div>
+    </div>
+    <div class="kpi warn">
+      <div class="kl">Unreachable</div>
+      <div class="kv" id="statUnreachable">0</div>
     </div>
   </div>
 
   <div class="panel">
     <h3>Recent Referrals</h3>
-    <div class="sub">This list will populate as you submit referrals through the portal.</div>
-    <div class="empty-state" id="emptyState">
-      <div class="ic">📋</div>
-      <p>No referrals yet. Once you submit your first referral, it will show up here with its live status.</p>
+    <div class="sub">Populated automatically as referrals are added under this Referral Source on the main dashboard.</div>
+    <div id="referralsArea">
+      <div class="empty-state" id="emptyState">
+        <div class="ic">📋</div>
+        <p>No referrals yet. Once a referral is submitted under your company on the main dashboard, it will show up here with its live status.</p>
+      </div>
     </div>
   </div>
 </div>
 
 <script src="data-store.js"></script>
+<script src="partner-api.js"></script>
 <script>
   const session = DataStore.requireAuth('login.html');
+
   if (session) {
     document.getElementById('orgName').textContent = session.companyName || 'Your Company';
+    document.getElementById('referralSourceName').textContent = session.companyName || '—';
+    loadDashboard(session.companyName);
+  }
 
-    // Stats are pulled from the referral source auto-created at registration.
-    // Once submissions are connected to a real backend, this same source
-    // record is where live referral counts should be written/read from.
-    const source = DataStore.getReferralSource(session.referralSourceId);
-    const stats = (source && source.stats) || { referrals: 0, approved: 0 };
-    document.getElementById('referralSourceName').textContent = (source && source.name) || session.companyName;
-    document.getElementById('statReferrals').textContent = stats.referrals;
-    document.getElementById('statApproved').textContent = stats.approved;
-    document.getElementById('statPending').textContent = Math.max(stats.referrals - stats.approved, 0);
-    document.getElementById('statConversion').textContent = stats.referrals > 0
-      ? `${Math.round((stats.approved / stats.referrals) * 100)}%`
-      : '—';
+  // Every value here comes from PartnerAPI, never straight from DataStore,
+  // and is always scoped to the logged-in partner's own company name —
+  // see partner-api.js for the security notes on why that matters.
+  async function loadDashboard(companyName) {
+    try {
+      const [stats, referrals] = await Promise.all([
+        PartnerAPI.getPartnerDashboardData(companyName),
+        PartnerAPI.getPartnerReferrals(companyName)
+      ]);
+      renderStats(stats);
+      renderReferrals(referrals);
+    } catch (err) {
+      console.error('Failed to load dashboard data', err);
+      // Fail safe to a zeroed dashboard rather than showing an error —
+      // a brand-new partner with no data yet should never see a scary screen.
+      renderStats(DataStore.emptyStats());
+      renderReferrals([]);
+    }
+  }
+
+  function renderStats(stats) {
+    stats = stats || DataStore.emptyStats();
+    document.getElementById('statTotal').textContent = stats.total || 0;
+    document.getElementById('statApproved').textContent = stats.approved || 0;
+    document.getElementById('statSubmittedToMedicare').textContent = stats.submittedToMedicare || 0;
+    document.getElementById('statScheduled').textContent = stats.scheduled || 0;
+    document.getElementById('statDenied').textContent = stats.denied || 0;
+    document.getElementById('statNotInterested').textContent = stats.notInterested || 0;
+    document.getElementById('statNoDementia').textContent = stats.noDementia || 0;
+    document.getElementById('statUnreachable').textContent = stats.unreachable || 0;
+  }
+
+  function renderReferrals(referrals) {
+    const area = document.getElementById('referralsArea');
+    if (!referrals || referrals.length === 0) {
+      area.innerHTML = `<div class="empty-state" id="emptyState">
+        <div class="ic">📋</div>
+        <p>No referrals yet. Once a referral is submitted under your company on the main dashboard, it will show up here with its live status.</p>
+      </div>`;
+      return;
+    }
+
+    const rows = referrals.map(r => {
+      const label = (DataStore.STATUS_LABELS && DataStore.STATUS_LABELS[r.status]) || r.status;
+      const date = r.receivedAt ? new Date(r.receivedAt).toLocaleDateString() : '—';
+      return `<tr>
+        <td>${date}</td>
+        <td><span class="status-pill status-${r.status}">${label}</span></td>
+        <td>${r.note ? escapeHtml(r.note) : ''}</td>
+      </tr>`;
+    }).join('');
+
+    area.innerHTML = `<table class="referral-table">
+      <thead><tr><th>Date</th><th>Status</th><th>Note</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
   }
 
   function handleLogout() {
