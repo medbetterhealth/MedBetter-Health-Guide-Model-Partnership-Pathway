@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Create Account — GUIDE Partnership Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Geist',sans-serif;background:#f4f8fc;color:#1a2b3c;min-height:100vh;display:flex;flex-direction:column;}
+
+  .topbar{display:flex;align-items:center;justify-content:center;padding:20px 32px;background:#fff;border-bottom:1px solid #e6ebf0;}
+  .tb-brand{display:flex;align-items:center;gap:14px;}
+  .tb-logo{width:40px;height:40px;border-radius:9px;background:linear-gradient(135deg,#0a3d6e,#d12128);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;}
+  .tb-org{font-weight:600;font-size:16px;color:#0a3d6e;}
+  .tb-sub{font-size:12px;color:#8ca0b3;}
+
+  .wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 20px;}
+  .card{max-width:460px;width:100%;background:#fff;border:1px solid #e6ebf0;border-radius:20px;overflow:hidden;box-shadow:0 14px 40px rgba(10,43,60,.12);}
+  .hero{padding:26px 30px;color:#fff;background:linear-gradient(135deg,#0a3d6e,#1a5a9a);}
+  .hero h2{font-size:21px;font-weight:700;}
+  .hero p{font-size:13px;opacity:.9;margin-top:4px;}
+
+  .steps{display:flex;gap:8px;padding:18px 30px 0;}
+  .step-dot{flex:1;height:5px;border-radius:4px;background:#e6ebf0;}
+  .step-dot.active{background:#1d9e75;}
+
+  .body{padding:24px 30px 30px;}
+  .field{margin-bottom:15px;}
+  .field label{display:block;font-size:13px;font-weight:600;color:#243b53;margin-bottom:6px;}
+  .field .req{color:#d12128;}
+  .field input{width:100%;padding:10px 12px;border:1.5px solid #d8e2ec;border-radius:9px;font-family:inherit;font-size:14px;transition:.2s;}
+  .field input:focus{outline:none;border-color:#0a3d6e;box-shadow:0 0 0 3px rgba(10,61,110,.12);}
+  .field input.error{border-color:#d12128;}
+  .err-msg{font-size:12px;color:#d12128;margin-top:5px;display:none;}
+  .err-msg.show{display:block;}
+
+  .btn-primary{width:100%;background:#1d9e75;color:#fff;border:none;padding:13px 20px;border-radius:24px;font-weight:700;font-size:15px;cursor:pointer;font-family:inherit;box-shadow:0 6px 16px rgba(29,158,117,.4);transition:.2s;}
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 9px 22px rgba(29,158,117,.5);}
+  .btn-secondary{width:100%;background:#fff;color:#0a3d6e;border:2px solid #0a3d6e;padding:11px 20px;border-radius:24px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;margin-top:10px;transition:.2s;}
+  .btn-secondary:hover{background:#0a3d6e;color:#fff;}
+
+  .foot-link{text-align:center;margin-top:18px;font-size:13px;color:#5f7387;}
+  .foot-link a{color:#0a3d6e;font-weight:600;text-decoration:none;}
+  .foot-link a:hover{text-decoration:underline;}
+
+  .alert{background:#fdecec;border:1.5px solid #f2c4c5;color:#8a1a1f;border-radius:10px;padding:12px 14px;font-size:13px;margin-bottom:16px;display:none;}
+  .alert.show{display:block;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="tb-brand">
+    <div class="tb-logo">G</div>
+    <div><div class="tb-org">MedBetterHealth</div><div class="tb-sub">GUIDE Partnership Portal</div></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <div class="hero">
+      <h2>Create your partner account</h2>
+      <p id="heroSub">Step 1 of 2 · Account credentials</p>
+    </div>
+    <div class="steps">
+      <div class="step-dot active" id="dot1"></div>
+      <div class="step-dot" id="dot2"></div>
+    </div>
+
+    <div class="body">
+      <div class="alert" id="formAlert"></div>
+
+      <!-- STEP 1: credentials -->
+      <form id="step1Form">
+        <div class="field">
+          <label>Email <span class="req">*</span></label>
+          <input type="email" id="s1Email" autocomplete="username" placeholder="you@youragency.com">
+          <div class="err-msg" id="err-s1Email"></div>
+        </div>
+        <div class="field">
+          <label>Password <span class="req">*</span></label>
+          <input type="password" id="s1Password" autocomplete="new-password" placeholder="At least 8 characters">
+          <div class="err-msg" id="err-s1Password"></div>
+        </div>
+        <div class="field">
+          <label>Confirm Password <span class="req">*</span></label>
+          <input type="password" id="s1Confirm" autocomplete="new-password" placeholder="Re-enter your password">
+          <div class="err-msg" id="err-s1Confirm"></div>
+        </div>
+        <button type="submit" class="btn-primary">Continue →</button>
+      </form>
+
+      <!-- STEP 2: company + contact -->
+      <form id="step2Form" style="display:none">
+        <div class="field">
+          <label>Company Name <span class="req">*</span></label>
+          <input type="text" id="s2Company" placeholder="e.g. ABC Home Care">
+          <div class="err-msg" id="err-s2Company"></div>
+        </div>
+        <div class="field">
+          <label>First Name <span class="req">*</span></label>
+          <input type="text" id="s2First" placeholder="First name">
+          <div class="err-msg" id="err-s2First"></div>
+        </div>
+        <div class="field">
+          <label>Last Name <span class="req">*</span></label>
+          <input type="text" id="s2Last" placeholder="Last name">
+          <div class="err-msg" id="err-s2Last"></div>
+        </div>
+        <div class="field">
+          <label>Email <span class="req">*</span></label>
+          <input type="email" id="s2Email" placeholder="you@youragency.com">
+          <div class="err-msg" id="err-s2Email"></div>
+        </div>
+        <div class="field">
+          <label>Phone Number <span class="req">*</span></label>
+          <input type="tel" id="s2Phone" placeholder="(305) 339-1756">
+          <div class="err-msg" id="err-s2Phone"></div>
+        </div>
+        <button type="submit" class="btn-primary">Create Account</button>
+        <button type="button" class="btn-secondary" id="backBtn">← Back</button>
+      </form>
+
+      <div class="foot-link">Already have an account? <a href="login.html">Sign in</a></div>
+    </div>
+  </div>
+</div>
+
+<script src="data-store.js"></script>
+<script src="phone-format.js"></script>
+<script>
+  // Step 1 answers are held in memory until step 2 completes, then both
+  // steps are submitted to DataStore.registerUser() together.
+  let step1Data = null;
+
+  function setError(fieldId, message) {
+    const input = document.getElementById(fieldId);
+    const err = document.getElementById(`err-${fieldId}`);
+    if (message) {
+      input.classList.add('error');
+      err.textContent = message;
+      err.classList.add('show');
+    } else {
+      input.classList.remove('error');
+      err.classList.remove('show');
+    }
+  }
+
+  function showAlert(message) {
+    const alertBox = document.getElementById('formAlert');
+    if (!message) { alertBox.classList.remove('show'); return; }
+    alertBox.textContent = message;
+    alertBox.classList.add('show');
+  }
+
+  // ---- Step 1: email / password / confirm ----------------------------
+  document.getElementById('step1Form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    showAlert('');
+    const email = document.getElementById('s1Email').value.trim();
+    const password = document.getElementById('s1Password').value;
+    const confirm = document.getElementById('s1Confirm').value;
+    let valid = true;
+
+    if (!DataStore.isValidEmail(email)) { setError('s1Email', 'Enter a valid email address.'); valid = false; }
+    else setError('s1Email', '');
+
+    if (password.length < 8) { setError('s1Password', 'Password must be at least 8 characters.'); valid = false; }
+    else setError('s1Password', '');
+
+    if (confirm !== password || !confirm) { setError('s1Confirm', 'Passwords do not match.'); valid = false; }
+    else setError('s1Confirm', '');
+
+    if (!valid) return;
+
+    step1Data = { email, password };
+    document.getElementById('s2Email').value = email;
+    document.getElementById('step1Form').style.display = 'none';
+    document.getElementById('step2Form').style.display = 'block';
+    document.getElementById('heroSub').textContent = 'Step 2 of 2 · Company & contact details';
+    document.getElementById('dot1').classList.add('active');
+    document.getElementById('dot2').classList.add('active');
+  });
+
+  document.getElementById('backBtn').addEventListener('click', () => {
+    document.getElementById('step2Form').style.display = 'none';
+    document.getElementById('step1Form').style.display = 'block';
+    document.getElementById('heroSub').textContent = 'Step 1 of 2 · Account credentials';
+    document.getElementById('dot2').classList.remove('active');
+  });
+
+  attachPhoneFormatting(document.getElementById('s2Phone'));
+
+  // ---- Step 2: company + contact, then create the account ------------
+  document.getElementById('step2Form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    showAlert('');
+    const companyName = document.getElementById('s2Company').value.trim();
+    const firstName = document.getElementById('s2First').value.trim();
+    const lastName = document.getElementById('s2Last').value.trim();
+    const email = document.getElementById('s2Email').value.trim();
+    const phone = document.getElementById('s2Phone').value.trim();
+    let valid = true;
+
+    if (!companyName) { setError('s2Company', 'Company name is required.'); valid = false; } else setError('s2Company', '');
+    if (!firstName) { setError('s2First', 'First name is required.'); valid = false; } else setError('s2First', '');
+    if (!lastName) { setError('s2Last', 'Last name is required.'); valid = false; } else setError('s2Last', '');
+    if (!DataStore.isValidEmail(email)) { setError('s2Email', 'Enter a valid email address.'); valid = false; } else setError('s2Email', '');
+    if (!DataStore.isValidPhone(phone)) { setError('s2Phone', 'Enter a valid 10-digit phone number.'); valid = false; } else setError('s2Phone', '');
+
+    if (!valid) return;
+
+    try {
+      await DataStore.registerUser({
+        email: step1Data.email,
+        password: step1Data.password,
+        companyName, firstName, lastName, phone
+      });
+      window.location.href = 'login.html?registered=1';
+    } catch (err) {
+      showAlert(err.message || 'Something went wrong. Please try again.');
+    }
+  });
+</script>
+</body>
+</html>

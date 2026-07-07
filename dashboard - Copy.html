@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Referral Dashboard — GUIDE Partnership Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Geist',sans-serif;background:#fff;color:#1a2b3c;}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 32px;border-bottom:1px solid #e6ebf0;position:sticky;top:0;background:#fff;z-index:50;}
+  .tb-left{display:flex;align-items:center;gap:14px;}
+  .tb-logo{width:40px;height:40px;border-radius:9px;background:linear-gradient(135deg,#0a3d6e,#d12128);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;}
+  .tb-org{font-weight:600;font-size:16px;color:#0a3d6e;}
+  .tb-sub{font-size:12px;color:#8ca0b3;}
+  .tb-right{display:flex;align-items:center;gap:12px;}
+  .tb-btn{background:transparent;border:1px solid #d5dde5;color:#5f7387;padding:8px 15px;border-radius:7px;cursor:pointer;font-size:13px;font-family:inherit;text-decoration:none;display:inline-block;}
+  .tb-btn:hover{background:#f5f7f9;}
+
+  .wrap{max-width:1080px;margin:0 auto;padding:30px 20px 60px;}
+  .page-title{font-size:26px;font-weight:700;margin-bottom:4px;}
+  .page-sub{font-size:14px;color:#8ca0b3;margin-bottom:26px;}
+
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px;}
+  .kpi{border:1px solid #e6ebf0;border-radius:12px;padding:18px;border-top:4px solid #0a3d6e;}
+  .kpi.approved{border-top-color:#1d9e75;}
+  .kpi .kl{font-size:11px;font-weight:700;text-transform:uppercase;color:#8ca0b3;letter-spacing:.4px;}
+  .kpi .kv{font-size:32px;font-weight:700;color:#1a2b3c;margin-top:8px;}
+  .kpi .ks{font-size:11.5px;color:#8ca0b3;margin-top:4px;}
+
+  .panel{border:1px solid #e6ebf0;border-radius:16px;padding:24px;margin-bottom:20px;}
+  .panel h3{font-size:17px;font-weight:700;color:#0a3d6e;margin-bottom:4px;}
+  .panel .sub{font-size:12.5px;color:#8ca0b3;margin-bottom:16px;}
+
+  .empty-state{text-align:center;padding:40px 20px;color:#8ca0b3;}
+  .empty-state .ic{font-size:38px;margin-bottom:10px;}
+  .empty-state p{font-size:13.5px;line-height:1.6;max-width:420px;margin:0 auto;}
+
+  .referral-source{display:inline-flex;align-items:center;gap:8px;background:#eef8f3;border:1.5px solid #b6e3ce;color:#1a5c42;font-weight:600;font-size:13px;padding:8px 16px;border-radius:20px;margin-bottom:24px;}
+
+  @media(max-width:820px){.kpi-grid{grid-template-columns:repeat(2,1fr);}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="tb-left">
+    <div class="tb-logo">G</div>
+    <div><div class="tb-org" id="orgName">Your Company</div><div class="tb-sub">Partner Referral Dashboard</div></div>
+  </div>
+  <div class="tb-right">
+    <a class="tb-btn" href="portal.html">← Back to Portal</a>
+    <button class="tb-btn" onclick="handleLogout()">Sign out</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="page-title">Referral Dashboard</div>
+  <div class="page-sub">Track every referral you send, in real time.</div>
+
+  <div class="referral-source">📁 Referral Source: <span id="referralSourceName">—</span></div>
+
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kl">Total Referrals</div>
+      <div class="kv" id="statReferrals">0</div>
+      <div class="ks">All-time submitted</div>
+    </div>
+    <div class="kpi approved">
+      <div class="kl">Approved</div>
+      <div class="kv" id="statApproved">0</div>
+      <div class="ks">Approved by Medicare</div>
+    </div>
+    <div class="kpi">
+      <div class="kl">Pending</div>
+      <div class="kv" id="statPending">0</div>
+      <div class="ks">Awaiting review</div>
+    </div>
+    <div class="kpi">
+      <div class="kl">Conversion Rate</div>
+      <div class="kv" id="statConversion">—</div>
+      <div class="ks">Approved / submitted</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Recent Referrals</h3>
+    <div class="sub">This list will populate as you submit referrals through the portal.</div>
+    <div class="empty-state" id="emptyState">
+      <div class="ic">📋</div>
+      <p>No referrals yet. Once you submit your first referral, it will show up here with its live status.</p>
+    </div>
+  </div>
+</div>
+
+<script src="data-store.js"></script>
+<script>
+  const session = DataStore.requireAuth('login.html');
+  if (session) {
+    document.getElementById('orgName').textContent = session.companyName || 'Your Company';
+
+    // Stats are pulled from the referral source auto-created at registration.
+    // Once submissions are connected to a real backend, this same source
+    // record is where live referral counts should be written/read from.
+    const source = DataStore.getReferralSource(session.referralSourceId);
+    const stats = (source && source.stats) || { referrals: 0, approved: 0 };
+    document.getElementById('referralSourceName').textContent = (source && source.name) || session.companyName;
+    document.getElementById('statReferrals').textContent = stats.referrals;
+    document.getElementById('statApproved').textContent = stats.approved;
+    document.getElementById('statPending').textContent = Math.max(stats.referrals - stats.approved, 0);
+    document.getElementById('statConversion').textContent = stats.referrals > 0
+      ? `${Math.round((stats.approved / stats.referrals) * 100)}%`
+      : '—';
+  }
+
+  function handleLogout() {
+    if (confirm('Sign out?')) {
+      DataStore.logout();
+      window.location.href = 'login.html';
+    }
+  }
+</script>
+</body>
+</html>

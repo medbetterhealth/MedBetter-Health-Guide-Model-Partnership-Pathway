@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign In — GUIDE Partnership Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Geist',sans-serif;background:#f4f8fc;color:#1a2b3c;min-height:100vh;display:flex;flex-direction:column;}
+
+  .topbar{display:flex;align-items:center;justify-content:center;padding:20px 32px;background:#fff;border-bottom:1px solid #e6ebf0;}
+  .tb-brand{display:flex;align-items:center;gap:14px;}
+  .tb-logo{width:40px;height:40px;border-radius:9px;background:linear-gradient(135deg,#0a3d6e,#d12128);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;}
+  .tb-org{font-weight:600;font-size:16px;color:#0a3d6e;}
+  .tb-sub{font-size:12px;color:#8ca0b3;}
+
+  .wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 20px;}
+  .card{max-width:420px;width:100%;background:#fff;border:1px solid #e6ebf0;border-radius:20px;overflow:hidden;box-shadow:0 14px 40px rgba(10,43,60,.12);}
+  .hero{padding:26px 30px;color:#fff;background:linear-gradient(135deg,#0a3d6e,#1a5a9a);}
+  .hero h2{font-size:21px;font-weight:700;}
+  .hero p{font-size:13px;opacity:.9;margin-top:4px;}
+
+  .body{padding:24px 30px 30px;}
+  .field{margin-bottom:15px;}
+  .field label{display:block;font-size:13px;font-weight:600;color:#243b53;margin-bottom:6px;}
+  .field input{width:100%;padding:10px 12px;border:1.5px solid #d8e2ec;border-radius:9px;font-family:inherit;font-size:14px;transition:.2s;}
+  .field input:focus{outline:none;border-color:#0a3d6e;box-shadow:0 0 0 3px rgba(10,61,110,.12);}
+  .field input.error{border-color:#d12128;}
+  .err-msg{font-size:12px;color:#d12128;margin-top:5px;display:none;}
+  .err-msg.show{display:block;}
+
+  .row-between{display:flex;justify-content:flex-end;margin:-6px 0 18px;}
+  .row-between a{font-size:12.5px;color:#0a3d6e;text-decoration:none;font-weight:600;}
+  .row-between a:hover{text-decoration:underline;}
+
+  .btn-primary{width:100%;background:#1d9e75;color:#fff;border:none;padding:13px 20px;border-radius:24px;font-weight:700;font-size:15px;cursor:pointer;font-family:inherit;box-shadow:0 6px 16px rgba(29,158,117,.4);transition:.2s;}
+  .btn-primary:hover{transform:translateY(-1px);box-shadow:0 9px 22px rgba(29,158,117,.5);}
+
+  .foot-link{text-align:center;margin-top:18px;font-size:13px;color:#5f7387;}
+  .foot-link a{color:#0a3d6e;font-weight:600;text-decoration:none;}
+  .foot-link a:hover{text-decoration:underline;}
+
+  .alert{background:#fdecec;border:1.5px solid #f2c4c5;color:#8a1a1f;border-radius:10px;padding:12px 14px;font-size:13px;margin-bottom:16px;display:none;}
+  .alert.show{display:block;}
+  .alert.success{background:#eafaf1;border-color:#b6e3ce;color:#0a5c3f;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="tb-brand">
+    <div class="tb-logo">G</div>
+    <div><div class="tb-org">MedBetterHealth</div><div class="tb-sub">GUIDE Partnership Portal</div></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <div class="hero">
+      <h2>Sign in to your account</h2>
+      <p>Access your GUIDE partnership pathway</p>
+    </div>
+    <div class="body">
+      <div class="alert" id="formAlert"></div>
+
+      <form id="loginForm">
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="loginEmail" autocomplete="username" placeholder="you@youragency.com">
+          <div class="err-msg" id="err-loginEmail"></div>
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="loginPassword" autocomplete="current-password" placeholder="Your password">
+          <div class="err-msg" id="err-loginPassword"></div>
+        </div>
+        <div class="row-between"><a href="forgot-password.html">Forgot Password?</a></div>
+        <button type="submit" class="btn-primary">Sign In</button>
+      </form>
+
+      <div class="foot-link">Don't have an account? <a href="index.html">Create one</a></div>
+    </div>
+  </div>
+</div>
+
+<script src="data-store.js"></script>
+<script>
+  function setError(fieldId, message) {
+    const input = document.getElementById(fieldId);
+    const err = document.getElementById(`err-${fieldId}`);
+    if (message) {
+      input.classList.add('error');
+      err.textContent = message;
+      err.classList.add('show');
+    } else {
+      input.classList.remove('error');
+      err.classList.remove('show');
+    }
+  }
+
+  function showAlert(message, isSuccess) {
+    const alertBox = document.getElementById('formAlert');
+    if (!message) { alertBox.classList.remove('show'); return; }
+    alertBox.textContent = message;
+    alertBox.classList.toggle('success', !!isSuccess);
+    alertBox.classList.add('show');
+  }
+
+  // If already logged in, skip straight to the portal.
+  if (DataStore.getSession()) {
+    window.location.href = 'portal.html';
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('registered')) {
+    showAlert('Account created. Please sign in.', true);
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    showAlert('');
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    let valid = true;
+
+    if (!email) { setError('loginEmail', 'Email is required.'); valid = false; } else setError('loginEmail', '');
+    if (!password) { setError('loginPassword', 'Password is required.'); valid = false; } else setError('loginPassword', '');
+    if (!valid) return;
+
+    try {
+      await DataStore.login(email, password);
+      const next = params.get('next');
+      window.location.href = next ? decodeURIComponent(next) : 'portal.html';
+    } catch (err) {
+      showAlert(err.message || 'Unable to sign in.');
+    }
+  });
+</script>
+</body>
+</html>
