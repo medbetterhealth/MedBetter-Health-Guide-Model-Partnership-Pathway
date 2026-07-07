@@ -14,8 +14,16 @@
  * Data model:
  *   users:            { id, email, password, companyName, firstName,
  *                        lastName, phone, referralSourceId, createdAt }
- *   referralSources:  { id, name, createdAt, stats:{referrals, approved} }
+ *   referralSources:  { id, name, createdAt, stats:REFERRAL_STATUSES-shaped
+ *                        object, referrals: [{id, status, receivedAt, note}] }
  *   session:          { userId, email, companyName, referralSourceId, loggedInAt }
+ *
+ * NOTE ON PRODUCTION USE: this file is a demo-only fallback so the GUIDE
+ * Partnership Portal works end-to-end before the real Partner Dashboard
+ * backend is wired up. It must not be treated as the production backend —
+ * every partner's data lives only in their own browser here. See
+ * partner-api.js for the integration seam that swaps this out for real
+ * API calls once the live dashboard's backend/API is available.
  * ------------------------------------------------------------------
  */
 const DataStore = (() => {
@@ -59,7 +67,40 @@ const DataStore = (() => {
   // ---- referral sources ------------------------------------------------
   // Requirement: when a new company registers, a matching Referral Source
   // record is auto-created (e.g. "ABC Home Care" -> Referral Source "ABC
-  // Home Care"). This is what the future Referral Dashboard will read from.
+  // Home Care"). This is what the live Partner Dashboard filters referrals
+  // by ("Referred By" = this exact company name).
+
+  // Every status a referral can be in on the main dashboard. Keys here are
+  // used both as the per-referral `status` value and as the dashboard's
+  // per-status counter name -- keep them in sync with the main dashboard's
+  // own status list when the real backend is connected.
+  const REFERRAL_STATUSES = [
+    'submittedToMedicare',
+    'scheduled',
+    'approved',
+    'denied',
+    'notInterested',
+    'noDementia',
+    'unreachable'
+  ];
+
+  const STATUS_LABELS = {
+    submittedToMedicare: 'Submitted to Medicare',
+    scheduled: 'Scheduled',
+    approved: 'Approved',
+    denied: 'Denied',
+    notInterested: 'Not Interested',
+    noDementia: 'No Dementia',
+    unreachable: 'Unreachable'
+  };
+
+  // The zero-state every new partner dashboard starts from.
+  function emptyStats() {
+    const stats = { total: 0 };
+    REFERRAL_STATUSES.forEach(key => { stats[key] = 0; });
+    return stats;
+  }
+
   function createReferralSourceForCompany(companyName) {
     const name = String(companyName || '').trim();
     const sources = readAll(SOURCES_KEY);
@@ -70,7 +111,8 @@ const DataStore = (() => {
       id: makeId('rs'),
       name,
       createdAt: new Date().toISOString(),
-      stats: { referrals: 0, approved: 0 }
+      stats: emptyStats(),
+      referrals: [] // {id, status, receivedAt, note} -- populated once referrals flow in from the main dashboard
     };
     sources.push(source);
     writeAll(SOURCES_KEY, sources);
@@ -79,6 +121,41 @@ const DataStore = (() => {
 
   function getReferralSource(id) {
     return readAll(SOURCES_KEY).find(s => s.id === id) || null;
+  }
+
+  // Look up by the exact company/"Referred By" name rather than the
+  // internal id -- this is the lookup key the real backend will actually
+  // filter on, so PartnerAPI is built around this function.
+  function getReferralSourceByName(name) {
+    const norm = String(name || '').trim().toLowerCase();
+    return readAll(SOURCES_KEY).find(s => s.name.toLowerCase() === norm) || null;
+  }
+
+  // ---- DEMO/QA ONLY --------------------------------------------------
+  // Simulates a referral arriving from the main dashboard under a given
+  // company name, so the portal's dashboard can be tested end-to-end
+  // before the real backend is connected. Never call this from production
+  // code paths -- it exists purely so you (or QA) can open the browser
+  // console and verify the dashboard updates correctly. See the "How to
+  // test" notes for exact console commands.
+  function simulateReferral(companyName, status, note) {
+    if (!REFERRAL_STATUSES.includes(status)) {
+      throw new Error('Unknown status "' + status + '". Expected one of: ' + REFERRAL_STATUSES.join(', '));
+    }
+    const sources = readAll(SOURCES_KEY);
+    const source = sources.find(s => s.name.toLowerCase() === String(companyName || '').trim().toLowerCase());
+    if (!source) throw new Error('No referral source found for "' + companyName + '".');
+
+    if (!source.stats) source.stats = emptyStats();
+    if (!source.referrals) source.referrals = [];
+
+    const referral = { id: makeId('ref'), status, receivedAt: new Date().toISOString(), note: note || '' };
+    source.referrals.unshift(referral);
+    source.stats.total = (source.stats.total || 0) + 1;
+    source.stats[status] = (source.stats[status] || 0) + 1;
+
+    writeAll(SOURCES_KEY, sources);
+    return source;
   }
 
   // ---- users / auth ------------------------------------------------
@@ -187,6 +264,11 @@ const DataStore = (() => {
     findUserByEmail,
     createReferralSourceForCompany,
     getReferralSource,
-    requestPasswordReset
+    getReferralSourceByName,
+    requestPasswordReset,
+    REFERRAL_STATUSES,
+    STATUS_LABELS,
+    emptyStats,
+    simulateReferral
   };
 })();
