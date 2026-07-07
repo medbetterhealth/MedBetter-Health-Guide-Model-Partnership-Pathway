@@ -154,10 +154,13 @@
 </div>
 
 <script src="data-store.js"></script>
+<script src="partner-api.js"></script>
 <script src="phone-format.js"></script>
 <script>
   // Step 1 answers are held in memory until step 2 completes, then both
-  // steps are submitted to DataStore.registerUser() together.
+  // steps are submitted to PartnerAPI.createPartnerAccount() together.
+  // (PartnerAPI is the seam that connects this to the main Partner
+  // Dashboard system — see partner-api.js.)
   let step1Data = null;
 
   function setError(fieldId, message) {
@@ -238,7 +241,9 @@
     if (!valid) return;
 
     try {
-      await DataStore.registerUser({
+      // Goes through PartnerAPI so this is ready to hit the real Partner
+      // Dashboard backend later with no change here — see partner-api.js.
+      await PartnerAPI.createPartnerAccount({
         email: step1Data.email,
         password: step1Data.password,
         companyName, firstName, lastName, phone
