@@ -7,15 +7,22 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   *{margin:0;padding:0;box-sizing:border-box;}
-  body{font-family:'Geist',sans-serif;background:#f4f8fc;color:#1a2b3c;min-height:100vh;display:flex;flex-direction:column;}
+  html,body{height:100%;}
+  body{font-family:'Geist',sans-serif;color:#1a2b3c;}
 
-  .topbar{display:flex;align-items:center;justify-content:center;padding:20px 32px;background:#fff;border-bottom:1px solid #e6ebf0;}
-  .tb-brand{display:flex;align-items:center;gap:14px;}
-  .tb-logo{width:40px;height:40px;border-radius:9px;background:linear-gradient(135deg,#0a3d6e,#d12128);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;}
-  .tb-org{font-weight:600;font-size:16px;color:#0a3d6e;}
-  .tb-sub{font-size:12px;color:#8ca0b3;}
+  /* Full-viewport split layout: brand panel + form panel on desktop,
+     stacked single column on mobile. */
+  .auth-shell{display:flex;min-height:100vh;min-height:100dvh;}
 
-  .wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 20px;}
+  .brand-panel{flex:0 0 42%;position:relative;overflow:hidden;background:linear-gradient(135deg,#0a3d6e,#1a5a9a);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:48px 40px;}
+  .brand-panel::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 25% 20%,rgba(255,255,255,.10),transparent 55%),radial-gradient(circle at 80% 85%,rgba(255,255,255,.08),transparent 55%);}
+  .brand-logo-card{position:relative;z-index:1;background:#fff;border-radius:18px;padding:18px 26px;box-shadow:0 14px 40px rgba(0,0,0,.25);margin-bottom:26px;}
+  .brand-logo-card img{height:44px;width:auto;display:block;}
+  .brand-panel h1{position:relative;z-index:1;font-size:24px;font-weight:700;margin-bottom:12px;}
+  .brand-panel p{position:relative;z-index:1;font-size:14px;line-height:1.6;color:rgba(255,255,255,.88);max-width:340px;}
+
+  .form-panel{flex:1;display:flex;align-items:center;justify-content:center;padding:40px 20px;background:#f4f8fc;overflow-y:auto;}
+
   .card{max-width:460px;width:100%;background:#fff;border:1px solid #e6ebf0;border-radius:20px;overflow:hidden;box-shadow:0 14px 40px rgba(10,43,60,.12);}
   .hero{padding:26px 30px;color:#fff;background:linear-gradient(135deg,#0a3d6e,#1a5a9a);}
   .hero h2{font-size:21px;font-weight:700;}
@@ -46,83 +53,102 @@
 
   .alert{background:#fdecec;border:1.5px solid #f2c4c5;color:#8a1a1f;border-radius:10px;padding:12px 14px;font-size:13px;margin-bottom:16px;display:none;}
   .alert.show{display:block;}
+
+  /* Mobile: collapse to a single scrolling column, compact brand strip on top */
+  @media(max-width:900px){
+    .auth-shell{flex-direction:column;min-height:100dvh;}
+    .brand-panel{flex:0 0 auto;padding:26px 20px;}
+    .brand-logo-card{padding:10px 16px;margin-bottom:10px;}
+    .brand-logo-card img{height:32px;}
+    .brand-panel h1{font-size:18px;margin-bottom:4px;}
+    .brand-panel p{display:none;}
+    .form-panel{padding:24px 16px 40px;}
+  }
+  @media(max-width:420px){
+    .card{border-radius:14px;}
+    .hero{padding:20px 22px;}
+    .body{padding:20px 22px 24px;}
+  }
 </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="tb-brand">
-    <div class="tb-logo">G</div>
-    <div><div class="tb-org">MedBetterHealth</div><div class="tb-sub">GUIDE Partnership Portal</div></div>
+<div class="auth-shell">
+  <div class="brand-panel">
+    <div class="brand-logo-card">
+      <img src="https://medbetterhealth.org/wp-content/uploads/2025/01/medbetter_logo.svg" alt="MedBetterHealth">
+    </div>
+    <h1>GUIDE Partnership Portal</h1>
+    <p>Partner with MedBetterHealth on the CMS GUIDE Model — from onboarding to your first referral.</p>
   </div>
-</div>
 
-<div class="wrap">
-  <div class="card">
-    <div class="hero">
-      <h2>Create your partner account</h2>
-      <p id="heroSub">Step 1 of 2 · Account credentials</p>
-    </div>
-    <div class="steps">
-      <div class="step-dot active" id="dot1"></div>
-      <div class="step-dot" id="dot2"></div>
-    </div>
+  <div class="form-panel">
+    <div class="card">
+      <div class="hero">
+        <h2>Create your partner account</h2>
+        <p id="heroSub">Step 1 of 2 · Account credentials</p>
+      </div>
+      <div class="steps">
+        <div class="step-dot active" id="dot1"></div>
+        <div class="step-dot" id="dot2"></div>
+      </div>
 
-    <div class="body">
-      <div class="alert" id="formAlert"></div>
+      <div class="body">
+        <div class="alert" id="formAlert"></div>
 
-      <!-- STEP 1: credentials -->
-      <form id="step1Form">
-        <div class="field">
-          <label>Email <span class="req">*</span></label>
-          <input type="email" id="s1Email" autocomplete="username" placeholder="you@youragency.com">
-          <div class="err-msg" id="err-s1Email"></div>
-        </div>
-        <div class="field">
-          <label>Password <span class="req">*</span></label>
-          <input type="password" id="s1Password" autocomplete="new-password" placeholder="At least 8 characters">
-          <div class="err-msg" id="err-s1Password"></div>
-        </div>
-        <div class="field">
-          <label>Confirm Password <span class="req">*</span></label>
-          <input type="password" id="s1Confirm" autocomplete="new-password" placeholder="Re-enter your password">
-          <div class="err-msg" id="err-s1Confirm"></div>
-        </div>
-        <button type="submit" class="btn-primary">Continue →</button>
-      </form>
+        <!-- STEP 1: credentials -->
+        <form id="step1Form">
+          <div class="field">
+            <label>Email <span class="req">*</span></label>
+            <input type="email" id="s1Email" autocomplete="username" placeholder="you@youragency.com">
+            <div class="err-msg" id="err-s1Email"></div>
+          </div>
+          <div class="field">
+            <label>Password <span class="req">*</span></label>
+            <input type="password" id="s1Password" autocomplete="new-password" placeholder="At least 8 characters">
+            <div class="err-msg" id="err-s1Password"></div>
+          </div>
+          <div class="field">
+            <label>Confirm Password <span class="req">*</span></label>
+            <input type="password" id="s1Confirm" autocomplete="new-password" placeholder="Re-enter your password">
+            <div class="err-msg" id="err-s1Confirm"></div>
+          </div>
+          <button type="submit" class="btn-primary">Continue →</button>
+        </form>
 
-      <!-- STEP 2: company + contact -->
-      <form id="step2Form" style="display:none">
-        <div class="field">
-          <label>Company Name <span class="req">*</span></label>
-          <input type="text" id="s2Company" placeholder="e.g. ABC Home Care">
-          <div class="err-msg" id="err-s2Company"></div>
-        </div>
-        <div class="field">
-          <label>First Name <span class="req">*</span></label>
-          <input type="text" id="s2First" placeholder="First name">
-          <div class="err-msg" id="err-s2First"></div>
-        </div>
-        <div class="field">
-          <label>Last Name <span class="req">*</span></label>
-          <input type="text" id="s2Last" placeholder="Last name">
-          <div class="err-msg" id="err-s2Last"></div>
-        </div>
-        <div class="field">
-          <label>Email <span class="req">*</span></label>
-          <input type="email" id="s2Email" placeholder="you@youragency.com">
-          <div class="err-msg" id="err-s2Email"></div>
-        </div>
-        <div class="field">
-          <label>Phone Number <span class="req">*</span></label>
-          <input type="tel" id="s2Phone" placeholder="(305) 339-1756">
-          <div class="err-msg" id="err-s2Phone"></div>
-        </div>
-        <button type="submit" class="btn-primary">Create Account</button>
-        <button type="button" class="btn-secondary" id="backBtn">← Back</button>
-      </form>
+        <!-- STEP 2: company + contact -->
+        <form id="step2Form" style="display:none">
+          <div class="field">
+            <label>Company Name <span class="req">*</span></label>
+            <input type="text" id="s2Company" placeholder="e.g. ABC Home Care">
+            <div class="err-msg" id="err-s2Company"></div>
+          </div>
+          <div class="field">
+            <label>First Name <span class="req">*</span></label>
+            <input type="text" id="s2First" placeholder="First name">
+            <div class="err-msg" id="err-s2First"></div>
+          </div>
+          <div class="field">
+            <label>Last Name <span class="req">*</span></label>
+            <input type="text" id="s2Last" placeholder="Last name">
+            <div class="err-msg" id="err-s2Last"></div>
+          </div>
+          <div class="field">
+            <label>Email <span class="req">*</span></label>
+            <input type="email" id="s2Email" placeholder="you@youragency.com">
+            <div class="err-msg" id="err-s2Email"></div>
+          </div>
+          <div class="field">
+            <label>Phone Number <span class="req">*</span></label>
+            <input type="tel" id="s2Phone" placeholder="(305) 339-1756">
+            <div class="err-msg" id="err-s2Phone"></div>
+          </div>
+          <button type="submit" class="btn-primary">Create Account</button>
+          <button type="button" class="btn-secondary" id="backBtn">← Back</button>
+        </form>
 
-      <div class="foot-link">Already have an account? <a href="login.html">Sign in</a></div>
+        <div class="foot-link">Already have an account? <a href="login.html">Sign in</a></div>
+      </div>
     </div>
   </div>
 </div>
