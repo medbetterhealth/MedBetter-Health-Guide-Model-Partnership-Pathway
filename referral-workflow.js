@@ -38,10 +38,12 @@
  * ------------------------------------------------------------------
  */
 const ReferralWorkflow = (() => {
-  const USE_REMOTE = false;
-  // Matches the naming convention already used by the main dashboard's
-  // existing Azure Function API (see PARTNER_LOGIN_API_URL etc. in dashboard.js).
-  const API_BASE = ''; // e.g. 'https://mbh-dashboard-api-eebbhjdxfrgxdfex.eastus2-01.azurewebsites.net/api'
+  // Live as of 2026-07-08: pending referrals are stored in Azure Table Storage
+  // via a dedicated Function App (mbh-referral-endpoints), which is what lets
+  // the GitHub Pages portal and the Azure dashboard — two different origins —
+  // actually share referral data instead of being stuck in separate localStorage.
+  const USE_REMOTE = true;
+  const API_BASE = 'https://mbh-referral-endpoints-a9gtfycygpa8fgbs.centralus-01.azurewebsites.net/api';
 
   const PENDING_KEY = 'mbh_pending_referrals_v1';
 
