@@ -488,9 +488,9 @@
 </div>
 
 <script src="data-store.js"></script>
-<script src="partner-api.js"></script>
-<script src="referral-workflow.js"></script>
-<script src="phone-format.js"></script>
+<script src="partner-api.js?v=2"></script>
+<script src="referral-workflow.js?v=2"></script>
+<script src="phone-format.js?v=2"></script>
 <script>
 // ═══════════════════════════════════════════════════════════════
 // Submit-a-Referral modal flow: Eligibility Checklist -> Add Patient
@@ -556,6 +556,11 @@ function renderEligibilityStep(){
       '<button class="btn-next" style="width:auto" onclick="closeReferralModal()">Cancel</button>' +
       '<button class="dash-btn rm-next-btn" id="rmNextBtn" style="display:none" onclick="goToAddPatientStep()">Next →</button>' +
     '</div>';
+  // Set the correct initial Next-button state right away — previously this only
+  // updated on a checkbox onchange event, so with nothing checked (the default,
+  // and the eligible case) the Next button stayed hidden until the user toggled
+  // something. Nothing checked in Step 2 means eligible, so evaluate it now too.
+  checkReferralEligibility();
 }
 
 function checkReferralEligibility(){
