@@ -4,10 +4,10 @@
  * ⚠️  AUTH NOTE (read before touching login/register) — as of
  * 2026-07-09, REAL authentication no longer lives in this file.
  * login.html and index.html call PartnerAPI.loginPartner() /
- * PartnerAPI.createPartnerAccount() (partner-api.js), which hit the
- * real mbh-dashboard-api backend — the same one the main dashboard's
- * partner.html already uses. That's what makes an account work across
- * devices/browsers. This file's own login()/registerUser() functions
+ * PartnerAPI.createPartnerAccount() (partner-api.js), which hit
+ * the mbh-referral-endpoints backend (Table Storage + bcrypt). That's
+ * what makes an account work across devices/browsers. This file's own
+ * login()/registerUser() functions
  * below are localStorage-only and are kept only as an unused
  * fallback/reference — DO NOT wire a login form back to
  * DataStore.login() directly, that would silently reintroduce the
@@ -40,7 +40,7 @@ const DataStore = (() => {
   if (DEMO_MODE && typeof console !== 'undefined') {
     console.warn(
       '%c[DataStore] Note: DataStore.login()/registerUser() are localStorage-only and unused by the live login/register forms.\n' +
-      'Real authentication is PartnerAPI.loginPartner()/createPartnerAccount() (partner-api.js), backed by mbh-dashboard-api.\n' +
+      'Real authentication is PartnerAPI.loginPartner()/createPartnerAccount() (partner-api.js), backed by mbh-referral-endpoints (Table Storage + bcrypt).\n' +
       'See the header comment in data-store.js for details.',
       'color:#b45309;font-weight:bold;'
     );
