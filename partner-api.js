@@ -1,100 +1,56 @@
 /*
  * partner-api.js
  * ------------------------------------------------------------------
- * Integration seam between the GUIDE Partnership Portal and the REAL
- * MedBetterHealth Partner Dashboard system (mbh-dashboard-api).
+ * Real, cross-device partner authentication for the GUIDE Partnership
+ * Portal — backed by NEW endpoints on the mbh-referral-endpoints
+ * Function App (the same one that already handles Pending Referrals),
+ * not localStorage and not the main dashboard's invitation system.
  *
- * As of 2026-07-09 this is the REAL cross-device authentication for
- * the portal — not a demo stub. Root cause fixed here: registration
- * and login used to go through DataStore's localStorage only, so an
- * account created on one browser/device was invisible everywhere else
- * ("works on my system, invalid on another"). Login/registration now
- * go through mbh-dashboard-api, the SAME backend that already powers
- * the main dashboard's partner.html — one real account, works on any
- * device from the moment it's activated. DataStore.registerUser() is
- * still called for local bookkeeping (referral-source stats for this
- * portal's own zero-state dashboard.html) but is NOT the source of
- * truth for login anymore — see loginPartner() below.
+ * As of 2026-07-09 this REPLACES the earlier invitation-based approach
+ * (send-invitation/accept-invitation on mbh-dashboard-api). Per explicit
+ * requirement: no invitation email, no admin approval step — an account
+ * is active the moment it's created, and can sign in immediately from
+ * any device.
  *
- * REGISTRATION FLOW:
- *   1. createPartnerProfile()   — local bookkeeping only (data-store.js)
- *   2. createReferralSource()  — local "Referred By" record
- *   3. createPartnerDashboardAccess() — calls the REAL /send-invitation
- *      endpoint (same one the admin's "Manage Referral Source Access"
- *      button calls), which creates real backend access + emails a link.
- *   4. tryImmediateActivation() — BEST EFFORT: immediately calls the
- *      real /accept-invitation endpoint with the password the partner
- *      just chose, using the same token from step 3. If the backend
- *      allows it, the partner is instantly, really, cross-device
- *      logged in with zero waiting. If it doesn't work for any reason
- *      (network hiccup, backend requires the literal email click,
- *      etc.), that's fine — the invitation email from step 3 is the
- *      guaranteed fallback path, so registration never fails or blocks
- *      on this being unavailable.
+ * Where things live:
+ *   - Passwords, sessions, reset tokens -> Azure Table Storage
+ *     (PartnerAccounts / PartnerSessions / PartnerResetTokens), inside
+ *     the register-partner/login-partner/etc. Function code. NEVER in
+ *     Excel, never in localStorage.
+ *   - Profile details (company, name, phone, referral source, status)
+ *     -> the "Partners" worksheet in the same Excel workbook Pending
+ *     Referrals already uses, written by register-partner via Graph.
+ *   - Password reset emails -> SendGrid, called directly from the
+ *     request-password-reset Function (see mbh-referral-endpoints/shared/email.js).
  *
- * LOGIN FLOW: loginPartner() calls the REAL /partner-login endpoint —
- * the same one partner.html itself calls — so any device that knows
- * the email/password gets in, matching what you'd expect from a real
- * account system.
+ * IMPORTANT — "Open Referral Dashboard" note: accounts created here are
+ * NOT the same accounts as the main dashboard's partner.html (that's a
+ * separate system on mbh-dashboard-api). Connecting a logged-in partner
+ * here to that real referral dashboard is deliberately deferred — see
+ * the project notes on this — so don't be surprised if that button
+ * doesn't yet recognize an account created through this flow.
  *
- * CORS REQUIREMENT (read this if anything here reports a network
- * error): the mbh-dashboard-api Function App's CORS settings must
- * allow THIS GitHub Pages origin, not just
- * https://mbhdashboard.z13.web.core.windows.net (which is already
- * allowed for the admin/partner dashboard pages). Azure Portal →
- * mbh-dashboard-api Function App → CORS → Allowed Origins → add this
- * site's URL. Every real call in this file (send-invitation,
- * accept-invitation, partner-login) is blocked until that's done —
- * this is a one-time Azure config change, not a code change.
+ * CORS REQUIREMENT: mbh-referral-endpoints' CORS settings must allow
+ * THIS GitHub Pages origin. That Function App's CORS was originally set
+ * up only for the admin dashboard calling it for Pending Referrals — the
+ * GUIDE portal calling it directly for register/login is a new caller
+ * and needs to be added separately. Azure Portal → mbh-referral-endpoints
+ * Function App → CORS → Allowed Origins → add this site's URL.
  * ------------------------------------------------------------------
  */
 const PartnerAPI = (() => {
-  const _API = 'https://mbh-dashboard-api-eebbhjdxfrgxdfex.eastus2-01.azurewebsites.net/api';
-  const SEND_INVITATION_API_URL   = _API + '/send-invitation';
-  const ACCEPT_INVITATION_API_URL = _API + '/accept-invitation';
-  const PARTNER_LOGIN_API_URL     = _API + '/partner-login';
-  const PARTNER_DATA_API_URL      = _API + '/partner-referrals';
-
-  // The REAL dashboard's partner-facing login/accept page — a different
-  // page than the admin's dashboard.html, living on the main dashboard's
-  // own Azure origin. Only used to build the link that goes in the
-  // invitation email; this file talks to the API directly, not this page.
-  const PARTNER_DASHBOARD_ORIGIN = 'https://mbhdashboard.z13.web.core.windows.net';
-
-  // ---- token generation — byte-for-byte identical to the admin --------
-  // dashboard's generateInvitationToken()/_b64UrlEncode()/_makeNonce()
-  // (main-dashboard/dashboard.js) so a token minted here decodes
-  // correctly on partner.html / the real backend, which share that
-  // exact encode/decode logic.
-  function _b64UrlEncode(s) {
-    return btoa(unescape(encodeURIComponent(s)))
-      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  }
-  function _makeNonce() {
-    const a = new Uint8Array(12);
-    crypto.getRandomValues(a);
-    return Array.from(a, b => b.toString(16).padStart(2, '0')).join('');
-  }
-  function generateInvitationToken(orgName, email, contactName, expiresInDays) {
-    const payload = {
-      org: orgName,
-      email: email,
-      contact: contactName,
-      iat: Date.now(),
-      exp: Date.now() + (expiresInDays || 30) * 24 * 60 * 60 * 1000,
-      nonce: _makeNonce()
-    };
-    return 'v1.' + _b64UrlEncode(JSON.stringify(payload));
-  }
-  function partnerInvitationLink(token) {
-    return `${PARTNER_DASHBOARD_ORIGIN}/partner.html?invite=${token}`;
-  }
+  const _API = 'https://mbh-referral-endpoints-a9gtfycygpa8fgbs.centralus-01.azurewebsites.net/api';
+  const REGISTER_URL      = _API + '/register-partner';
+  const LOGIN_URL         = _API + '/login-partner';
+  const REQUEST_RESET_URL = _API + '/request-password-reset';
+  const RESET_URL         = _API + '/reset-password';
+  const PROFILE_URL       = _API + '/get-partner-profile';
 
   function _networkError(context, e) {
     const isAbort = e && e.name === 'AbortError';
     return new Error(
       (isAbort ? context + ' timed out.' : 'Could not reach ' + context + ' (' + (e.message || e) + ').') +
-      ' If this keeps happening, check that this site\'s origin is allowed in mbh-dashboard-api\'s CORS settings.'
+      ' If this keeps happening, check that this site\'s origin is allowed in mbh-referral-endpoints\' CORS settings.'
     );
   }
 
@@ -116,126 +72,44 @@ const PartnerAPI = (() => {
     clearTimeout(timer);
     let parsed = null;
     try { parsed = await res.json(); } catch (_) {}
-    return { res, parsed };
+    return { res, parsed: parsed || {} };
   }
 
-  // ---- 1. Partner registration: local GUIDE-portal bookkeeping --------
-  // NOT the source of truth for login (see file header) — kept only so
-  // this portal's own zero-state dashboard.html has something to key
-  // referral-source stats off of locally.
-  async function createPartnerProfile({ email, password, companyName, firstName, lastName, phone }) {
-    return DataStore.registerUser({ email, password, companyName, firstName, lastName, phone });
-  }
-
-  // ---- 2. Referral Source: "Referred By" record for a company ---------
-  async function createReferralSource(companyName) {
-    return DataStore.createReferralSourceForCompany(companyName);
-  }
-
-  // ---- 3. Dashboard access: the real automation ------------------------
-  // Calls the exact same backend endpoint the admin's "Manage Referral
-  // Source Access → Send Invitation" button calls. On success the
-  // partner receives a real invitation email from the main dashboard
-  // system, identical to what an admin sending it by hand would trigger.
-  async function createPartnerDashboardAccess({ email, referralSourceName, contactName }) {
-    const token = generateInvitationToken(referralSourceName, email, contactName, 30);
-    const invitationLink = partnerInvitationLink(token);
-    try {
-      const { res, parsed } = await postJson(SEND_INVITATION_API_URL, {
-        orgName: referralSourceName,
-        contactName,
-        contactEmail: email,
-        invitationLink
-      }, 20000);
-      if (!res.ok || !(parsed && parsed.ok)) {
-        throw new Error((parsed && parsed.error) || ('HTTP ' + res.status));
-      }
-      DataStore.setDashboardAccessStatus(email, {
-        status: 'sent', token, invitationLink, referralSourceName,
-        requestedAt: new Date().toISOString(),
-        messageId: parsed.messageId || null, error: null
-      });
-      return { sent: true, invitationLink, token };
-    } catch (e) {
-      // Registration must NOT fail just because the auto-invite email
-      // failed (CORS not yet allowlisted, backend briefly asleep, etc).
-      // Record it so the portal can show a clear message, and the admin
-      // can always fall back to the existing manual "Manage Referral
-      // Source Access" flow for this partner.
-      DataStore.setDashboardAccessStatus(email, {
-        status: 'failed', token, invitationLink, referralSourceName,
-        requestedAt: new Date().toISOString(), error: e.message || String(e)
-      });
-      return { sent: false, error: e.message || String(e), invitationLink, token };
-    }
-  }
-
-  // ---- 3b. Best-effort instant activation ------------------------------
-  // Tries to complete the real backend's account-creation step (normally
-  // triggered by the partner clicking the invitation email and typing a
-  // password on partner.html) immediately, using the password they just
-  // chose during registration. Returns the real session on success, or
-  // null if it didn't work for any reason — callers must treat null as
-  // "fall back to the email-activation flow", not an error.
-  async function tryImmediateActivation(token, password) {
-    if (!token || !password || password.length < 6) return null;
-    let res, parsed;
-    try {
-      ({ res, parsed } = await postJson(ACCEPT_INVITATION_API_URL, { invitationToken: token, password }, 20000));
-    } catch (e) {
-      console.warn('[partner-api] Instant activation unreachable, falling back to email flow:', e.message);
-      return null;
-    }
-    if (!res.ok || !parsed) return null;
-    if (parsed.alreadyActive) return null; // existing account -- let them sign in normally instead
-    if (!parsed.sessionToken) return null;
-    const session = {
-      userId: null,
-      email: parsed.email,
-      companyName: parsed.orgName,
-      firstName: '', lastName: '',
-      referralSourceId: null,
-      referralSource: parsed.referralSource || parsed.orgName,
-      sessionToken: parsed.sessionToken,
-      loggedInAt: new Date().toISOString()
-    };
-    DataStore.setSession(session);
-    return session;
-  }
-
-  // ---- 4. Full registration: profile + referral source + dashboard ----
-  // access + best-effort instant activation, in that order. Same
-  // name/shape as before so index.html's call site barely changes.
+  // ---- 1/2. Register: account (Table Storage) + profile (Excel), ------
+  // done together in one backend call (register-partner) so an account
+  // can never exist without its Excel profile row, or vice versa. Active
+  // immediately — no invitation, no approval step.
   async function createPartnerAccount({ email, password, companyName, firstName, lastName, phone }) {
-    const user = await createPartnerProfile({ email, password, companyName, firstName, lastName, phone });
-    await createReferralSource(companyName);
-    const contactName = `${firstName} ${lastName}`.trim();
-    const access = await createPartnerDashboardAccess({ email, referralSourceName: companyName, contactName });
-
-    let activatedSession = null;
-    if (access.sent && access.token) {
-      activatedSession = await tryImmediateActivation(access.token, password);
+    const { res, parsed } = await postJson(REGISTER_URL, { email, password, companyName, firstName, lastName, phone });
+    if (!res.ok || !parsed.ok) {
+      throw new Error(parsed.error || ('Registration failed (HTTP ' + res.status + ').'));
     }
-    return { ...user, dashboardAccess: access, activatedSession };
+    // Local bookkeeping only, so dashboard.html (root, zero-state demo)
+    // has a matching referral-source record — unrelated to the real
+    // account just created above.
+    DataStore.createReferralSourceForCompany(companyName);
+    return parsed; // { ok, partnerId, email, companyName }
   }
 
-  // ---- 5. Login: the real fix for "works on one device, not another" -
-  // Calls the exact same /partner-login endpoint partner.html uses.
-  // Any device that knows the correct email/password gets a real
-  // session — no localStorage lookup, no per-browser account.
+  // Exposed separately for parity with the requested function name, in
+  // case profile data ever needs re-syncing to Excel independently later.
+  // In the normal signup flow this already happens inside
+  // createPartnerAccount() above — you don't need to call this too.
+  async function savePartnerProfileToExcel(profileData) {
+    return createPartnerAccount(profileData);
+  }
+
+  // ---- 3. Login: real, cross-device --------------------------------
+  // Hits login-partner, which checks the bcrypt hash in Table Storage
+  // and issues a session token — works from any device/browser, unlike
+  // the old localStorage-only login.
   async function loginPartner(email, password) {
-    let res, parsed;
-    try {
-      ({ res, parsed } = await postJson(PARTNER_LOGIN_API_URL, { email, password }, 20000));
-    } catch (e) {
-      throw _networkError('the account service', e);
-    }
-    parsed = parsed || {};
-    if (res.status === 403 && parsed.code === 'revoked') {
-      throw new Error(parsed.error || 'Your access has been revoked. Please contact MedBetterHealth.');
-    }
+    const { res, parsed } = await postJson(LOGIN_URL, { email, password });
     if (res.status === 404 || parsed.code === 'not_found') {
-      throw new Error('No account found for this email. If you just registered, check your email for the activation link first. If you registered a while ago on a different device, make sure you completed activation there.');
+      throw new Error('No account found for this email. Check that you registered with this exact email, or create an account first.');
+    }
+    if (res.status === 403 && parsed.code === 'inactive') {
+      throw new Error(parsed.error || 'This account is not active. Please contact MedBetterHealth.');
     }
     if (!res.ok || !parsed.ok) {
       throw new Error(parsed.error || 'Incorrect email or password.');
@@ -243,60 +117,60 @@ const PartnerAPI = (() => {
     const session = {
       userId: null,
       email: parsed.email,
-      companyName: parsed.orgName,
+      companyName: parsed.companyName,
       firstName: '', lastName: '',
       referralSourceId: null,
-      referralSource: parsed.referralSource || parsed.orgName,
-      sessionToken: parsed.sessionToken,
+      referralSource: parsed.referralSource || parsed.companyName,
+      partnerId: parsed.partnerId,
+      sessionToken: parsed.token,
       loggedInAt: new Date().toISOString()
     };
     DataStore.setSession(session);
-    // Keep the local demo dashboard's referral-source record in sync too,
-    // purely cosmetic for dashboard.html (root) — the real data view is
-    // partner.html.
     DataStore.createReferralSourceForCompany(session.companyName);
     return session;
   }
 
-  // ---- 6. Who's logged in right now, and is that session still good ---
+  // ---- 4. Forgot password: real email, not a placeholder ---------------
+  async function sendPasswordResetEmail(email) {
+    const { res, parsed } = await postJson(REQUEST_RESET_URL, { email });
+    if (!res.ok) {
+      throw new Error(parsed.error || 'Could not send the reset email. Please try again.');
+    }
+    return parsed; // { ok: true, message }
+  }
+
+  // ---- 5. Complete the reset with the token from the emailed link -----
+  async function resetPassword(token, newPassword) {
+    const { res, parsed } = await postJson(RESET_URL, { token, newPassword });
+    if (!res.ok || !parsed.ok) {
+      throw new Error(parsed.error || 'Could not reset your password. The link may have expired.');
+    }
+    return parsed;
+  }
+
+  // ---- 6. Profile lookup (Table Storage, fast; not the Excel sheet) ---
+  async function getPartnerProfileByEmail(email) {
+    let res, parsed;
+    try {
+      res = await fetch(PROFILE_URL + '?email=' + encodeURIComponent(email));
+      parsed = await res.json().catch(() => ({}));
+    } catch (e) {
+      throw _networkError('the account service', e);
+    }
+    if (!res.ok || !parsed.ok) return null;
+    return parsed;
+  }
+
+  // ---- 7. Who's logged in right now (reads the local session DataStore
+  // set from loginPartner()/createPartnerAccount() above) --------------
   function getLoggedInPartner() {
     return DataStore.getSession();
   }
-  async function verifySession() {
-    const session = DataStore.getSession();
-    if (!session || !session.sessionToken) return null;
-    try {
-      const { res, parsed } = await postJson(PARTNER_DATA_API_URL, {
-        sessionToken: session.sessionToken,
-        email: session.email
-      }, 15000);
-      if (res.status === 403 && parsed && parsed.code === 'revoked') {
-        DataStore.logout();
-        return null;
-      }
-      if (!res.ok || !(parsed && parsed.ok)) return null;
-      return session;
-    } catch (e) {
-      // Fail open on a transient network error -- don't sign someone out
-      // just because one background check timed out.
-      console.warn('[partner-api] verifySession network error, keeping existing session:', e.message);
-      return session;
-    }
-  }
 
-  // ---- 7. Look up a partner's local access record by email ------------
-  function getPartnerAccessByEmail(email) {
-    return DataStore.getDashboardAccessStatus(email);
-  }
-
-  // ---- 8/9. Aggregate stats + referral rows, scoped to one company. ---
-  // SECURITY NOTE: always pass the referralSource that came from
-  // DataStore.getSession() (the logged-in partner's own company) — never
-  // a value taken from a URL parameter or other user-editable input.
-  // This local copy only feeds THIS portal's own zero-state dashboard.html
-  // (root of the repo) — the REAL partner data view, with real
-  // server-side enforcement, is the main dashboard's partner.html,
-  // reached via "Open Referral Dashboard".
+  // ---- 8/9. Local zero-state dashboard data (dashboard.html at the ----
+  // repo root only — NOT the real MedBetterHealth referral dashboard).
+  // Kept so that page keeps working unchanged; unrelated to the account
+  // system above. See the file header note on "Open Referral Dashboard".
   async function getPartnerDashboardData(referralSource) {
     const source = DataStore.getReferralSourceByName(referralSource);
     return (source && source.stats) || DataStore.emptyStats();
@@ -305,10 +179,7 @@ const PartnerAPI = (() => {
     const source = DataStore.getReferralSourceByName(referralSource);
     return (source && source.referrals) || [];
   }
-  // Back-compat alias for the original name used elsewhere in this project.
   const getPartnerReferrals = getReferralsByReferralSource;
-
-  // ---- 10. Dashboard lookup for whoever is currently logged in ---------
   async function getPartnerDashboardByLoggedInUser() {
     const session = DataStore.getSession();
     if (!session) throw new Error('Not logged in.');
@@ -316,18 +187,16 @@ const PartnerAPI = (() => {
   }
 
   return {
-    createPartnerProfile,
-    createReferralSource,
-    createPartnerDashboardAccess,
     createPartnerAccount,
+    savePartnerProfileToExcel,
     loginPartner,
+    sendPasswordResetEmail,
+    resetPassword,
+    getPartnerProfileByEmail,
     getLoggedInPartner,
-    verifySession,
-    getPartnerAccessByEmail,
     getPartnerDashboardData,
-    getPartnerDashboardByLoggedInUser,
     getReferralsByReferralSource,
     getPartnerReferrals,
-    partnerInvitationLink
+    getPartnerDashboardByLoggedInUser
   };
 })();
