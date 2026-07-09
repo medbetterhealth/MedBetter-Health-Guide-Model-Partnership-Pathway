@@ -154,7 +154,7 @@
 </div>
 
 <script src="data-store.js?v=4"></script>
-<script src="partner-api.js?v=4"></script>
+<script src="partner-api.js?v=5"></script>
 <script src="phone-format.js"></script>
 <script>
   // Step 1 answers are held in memory until step 2 completes, then both
@@ -240,25 +240,21 @@
 
     if (!valid) return;
 
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.dataset.origLabel = submitBtn.textContent; submitBtn.textContent = 'Creating account…'; }
     try {
-      // Real registration: creates real, cross-device dashboard access
-      // via mbh-dashboard-api and best-effort instantly activates it
-      // with the password just chosen — see partner-api.js's file header.
-      const result = await PartnerAPI.createPartnerAccount({
+      // Real registration: account is active immediately, no invitation
+      // email, no approval step — see partner-api.js's file header.
+      await PartnerAPI.createPartnerAccount({
         email: step1Data.email,
         password: step1Data.password,
         companyName, firstName, lastName, phone
       });
-      if (result.activatedSession) {
-        // Instant activation worked — already really, cross-device
-        // logged in. Skip straight to the portal, no extra step needed.
-        window.location.href = 'portal.html';
-        return;
-      }
-      const dashParam = (result.dashboardAccess && result.dashboardAccess.sent) ? 'sent' : 'pending';
-      window.location.href = 'login.html?registered=1&dash=' + dashParam;
+      window.location.href = 'login.html?registered=1';
     } catch (err) {
       showAlert(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = submitBtn.dataset.origLabel || 'Create Account'; }
     }
   });
 </script>
