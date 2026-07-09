@@ -111,7 +111,7 @@
 </div>
 
 <script src="data-store.js?v=4"></script>
-<script src="partner-api.js?v=4"></script>
+<script src="partner-api.js?v=5"></script>
 <script>
   function setError(fieldId, message) {
     const input = document.getElementById(fieldId);
@@ -141,14 +141,7 @@
 
   const params = new URLSearchParams(window.location.search);
   if (params.get('registered')) {
-    const dash = params.get('dash');
-    if (dash === 'sent') {
-      showAlert('Account created. Please sign in. We also emailed you a separate link to activate your Partner Referral Dashboard access — look for an email from MedBetterHealth.', true);
-    } else if (dash === 'pending') {
-      showAlert('Account created. Please sign in. Your Partner Referral Dashboard access is being set up — if you don’t get an activation email shortly, contact MedBetterHealth and they can send it manually.', true);
-    } else {
-      showAlert('Account created. Please sign in.', true);
-    }
+    showAlert('Account created — you can sign in right away.', true);
   }
 
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -165,9 +158,9 @@
     const submitBtn = e.target.querySelector('button[type="submit"]');
     if (submitBtn) { submitBtn.disabled = true; submitBtn.dataset.origLabel = submitBtn.textContent; submitBtn.textContent = 'Signing in…'; }
     try {
-      // Real, cross-device login — hits mbh-dashboard-api directly (the
-      // same backend partner.html uses), not localStorage. See
-      // partner-api.js's file header for why this replaced DataStore.login().
+      // Real, cross-device login — hits the register-partner/login-partner
+      // backend (Table Storage + Excel), not localStorage. See
+      // partner-api.js's file header for details.
       await PartnerAPI.loginPartner(email, password);
       const next = params.get('next');
       window.location.href = next ? decodeURIComponent(next) : 'portal.html';
