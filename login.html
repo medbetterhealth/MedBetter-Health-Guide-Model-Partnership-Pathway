@@ -140,7 +140,14 @@
 
   const params = new URLSearchParams(window.location.search);
   if (params.get('registered')) {
-    showAlert('Account created. Please sign in.', true);
+    const dash = params.get('dash');
+    if (dash === 'sent') {
+      showAlert('Account created. Please sign in. We also emailed you a separate link to activate your Partner Referral Dashboard access — look for an email from MedBetterHealth.', true);
+    } else if (dash === 'pending') {
+      showAlert('Account created. Please sign in. Your Partner Referral Dashboard access is being set up — if you don’t get an activation email shortly, contact MedBetterHealth and they can send it manually.', true);
+    } else {
+      showAlert('Account created. Please sign in.', true);
+    }
   }
 
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
