@@ -1,58 +1,37 @@
 /*
  * partner-api.js
  * ------------------------------------------------------------------
- * Real, cross-device partner authentication for the GUIDE Partnership
- * Portal — backed by NEW endpoints on the mbh-referral-endpoints
- * Function App (the same one that already handles Pending Referrals),
- * not localStorage and not the main dashboard's invitation system.
+ * Partner authentication via Supabase Auth — replaces the earlier
+ * custom Azure Functions + Table Storage + SendGrid approach entirely.
+ * Supabase handles password hashing, sessions, cross-device login, and
+ * password-reset emails out of the box — no SendGrid account needed.
  *
- * As of 2026-07-09 this REPLACES the earlier invitation-based approach
- * (send-invitation/accept-invitation on mbh-dashboard-api). Per explicit
- * requirement: no invitation email, no admin approval step — an account
- * is active the moment it's created, and can sign in immediately from
- * any device.
+ * Only ONE Azure Function is still used from here: save-partner-profile
+ * (mbh-referral-endpoints), which writes profile details — never the
+ * password — to the "Partners" Excel worksheet via the same Graph API
+ * pattern Pending Referrals already uses. That one stays server-side
+ * because the Graph API credentials are secrets; they can't be called
+ * directly from the browser the way Supabase's public anon key can be.
  *
- * Where things live:
- *   - Passwords, sessions, reset tokens -> Azure Table Storage
- *     (PartnerAccounts / PartnerSessions / PartnerResetTokens), inside
- *     the register-partner/login-partner/etc. Function code. NEVER in
- *     Excel, never in localStorage.
- *   - Profile details (company, name, phone, referral source, status)
- *     -> the "Partners" worksheet in the same Excel workbook Pending
- *     Referrals already uses, written by register-partner via Graph.
- *   - Password reset emails -> SendGrid, called directly from the
- *     request-password-reset Function (see mbh-referral-endpoints/shared/email.js).
+ * Requires supabase-client.js (creates `supabaseClient`) loaded first,
+ * which itself requires the Supabase JS SDK CDN script loaded before it:
+ *   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+ *   <script src="supabase-client.js"></script>
+ *   <script src="data-store.js"></script>
+ *   <script src="partner-api.js"></script>
  *
- * IMPORTANT — "Open Referral Dashboard" note: accounts created here are
- * NOT the same accounts as the main dashboard's partner.html (that's a
- * separate system on mbh-dashboard-api). Connecting a logged-in partner
- * here to that real referral dashboard is deliberately deferred — see
- * the project notes on this — so don't be surprised if that button
- * doesn't yet recognize an account created through this flow.
- *
- * CORS REQUIREMENT: mbh-referral-endpoints' CORS settings must allow
- * THIS GitHub Pages origin. That Function App's CORS was originally set
- * up only for the admin dashboard calling it for Pending Referrals — the
- * GUIDE portal calling it directly for register/login is a new caller
- * and needs to be added separately. Azure Portal → mbh-referral-endpoints
- * Function App → CORS → Allowed Origins → add this site's URL.
+ * SUPABASE PROJECT SETTINGS THIS RELIES ON (see setup notes given to
+ * the user separately):
+ *   - Authentication -> Providers -> Email -> "Confirm email" turned OFF,
+ *     so signUp() returns a usable session immediately (no waiting on an
+ *     email click before a partner can sign in).
+ *   - Authentication -> URL Configuration -> Redirect URLs includes this
+ *     site's reset-password.html URL, or resetPasswordForEmail()'s
+ *     redirect will be rejected.
  * ------------------------------------------------------------------
  */
 const PartnerAPI = (() => {
-  const _API = 'https://mbh-referral-endpoints-a9gtfycygpa8fgbs.centralus-01.azurewebsites.net/api';
-  const REGISTER_URL      = _API + '/register-partner';
-  const LOGIN_URL         = _API + '/login-partner';
-  const REQUEST_RESET_URL = _API + '/request-password-reset';
-  const RESET_URL         = _API + '/reset-password';
-  const PROFILE_URL       = _API + '/get-partner-profile';
-
-  function _networkError(context, e) {
-    const isAbort = e && e.name === 'AbortError';
-    return new Error(
-      (isAbort ? context + ' timed out.' : 'Could not reach ' + context + ' (' + (e.message || e) + ').') +
-      ' If this keeps happening, check that this site\'s origin is allowed in mbh-referral-endpoints\' CORS settings.'
-    );
-  }
+  const SAVE_PROFILE_URL = 'https://mbh-referral-endpoints-a9gtfycygpa8fgbs.centralus-01.azurewebsites.net/api/save-partner-profile';
 
   async function postJson(url, body, timeoutMs) {
     const ctrl = new AbortController();
@@ -67,7 +46,7 @@ const PartnerAPI = (() => {
       });
     } catch (e) {
       clearTimeout(timer);
-      throw _networkError('the account service', e);
+      throw new Error('Could not save your profile details right now (' + (e.message || e) + ').');
     }
     clearTimeout(timer);
     let parsed = null;
@@ -75,102 +54,93 @@ const PartnerAPI = (() => {
     return { res, parsed: parsed || {} };
   }
 
-  // ---- 1/2. Register: account (Table Storage) + profile (Excel), ------
-  // done together in one backend call (register-partner) so an account
-  // can never exist without its Excel profile row, or vice versa. Active
-  // immediately — no invitation, no approval step.
-  async function createPartnerAccount({ email, password, companyName, firstName, lastName, phone }) {
-    const { res, parsed } = await postJson(REGISTER_URL, { email, password, companyName, firstName, lastName, phone });
-    if (!res.ok || !parsed.ok) {
-      throw new Error(parsed.error || ('Registration failed (HTTP ' + res.status + ').'));
-    }
-    // Local bookkeeping only, so dashboard.html (root, zero-state demo)
-    // has a matching referral-source record — unrelated to the real
-    // account just created above.
-    DataStore.createReferralSourceForCompany(companyName);
-    return parsed; // { ok, partnerId, email, companyName }
-  }
-
-  // Exposed separately for parity with the requested function name, in
-  // case profile data ever needs re-syncing to Excel independently later.
-  // In the normal signup flow this already happens inside
-  // createPartnerAccount() above — you don't need to call this too.
-  async function savePartnerProfileToExcel(profileData) {
-    return createPartnerAccount(profileData);
-  }
-
-  // ---- 3. Login: real, cross-device --------------------------------
-  // Hits login-partner, which checks the bcrypt hash in Table Storage
-  // and issues a session token — works from any device/browser, unlike
-  // the old localStorage-only login.
-  async function loginPartner(email, password) {
-    const { res, parsed } = await postJson(LOGIN_URL, { email, password });
-    if (res.status === 404 || parsed.code === 'not_found') {
-      throw new Error('No account found for this email. Check that you registered with this exact email, or create an account first.');
-    }
-    if (res.status === 403 && parsed.code === 'inactive') {
-      throw new Error(parsed.error || 'This account is not active. Please contact MedBetterHealth.');
-    }
-    if (!res.ok || !parsed.ok) {
-      throw new Error(parsed.error || 'Incorrect email or password.');
-    }
-    const session = {
-      userId: null,
-      email: parsed.email,
-      companyName: parsed.companyName,
-      firstName: '', lastName: '',
+  function _storeSession(session, user, companyNameHint) {
+    const meta = (user && user.user_metadata) || {};
+    const companyName = companyNameHint || meta.companyName || '';
+    DataStore.setSession({
+      userId: user ? user.id : null,
+      email: user ? user.email : '',
+      companyName,
+      firstName: meta.firstName || '',
+      lastName: meta.lastName || '',
       referralSourceId: null,
-      referralSource: parsed.referralSource || parsed.companyName,
-      partnerId: parsed.partnerId,
-      sessionToken: parsed.token,
+      referralSource: companyName,
+      partnerId: user ? user.id : null,
+      sessionToken: session ? session.access_token : null,
       loggedInAt: new Date().toISOString()
-    };
-    DataStore.setSession(session);
-    DataStore.createReferralSourceForCompany(session.companyName);
-    return session;
+    });
   }
 
-  // ---- 4. Forgot password: real email, not a placeholder ---------------
-  async function sendPasswordResetEmail(email) {
-    const { res, parsed } = await postJson(REQUEST_RESET_URL, { email });
-    if (!res.ok) {
-      throw new Error(parsed.error || 'Could not send the reset email. Please try again.');
-    }
-    return parsed; // { ok: true, message }
-  }
+  // ---- 1. Register: Supabase Auth user + Excel profile row -----------
+  // companyName/firstName/lastName/phone are also stashed in Supabase's
+  // user_metadata at signup time, so they come back for free on every
+  // future login without a second network call.
+  async function createPartnerAccount({ email, password, companyName, firstName, lastName, phone }) {
+    const { data, error } = await supabaseClient.auth.signUp({
+      email, password,
+      options: { data: { companyName, firstName, lastName, phone } }
+    });
+    if (error) throw new Error(error.message || 'Registration failed.');
 
-  // ---- 5. Complete the reset with the token from the emailed link -----
-  async function resetPassword(token, newPassword) {
-    const { res, parsed } = await postJson(RESET_URL, { token, newPassword });
-    if (!res.ok || !parsed.ok) {
-      throw new Error(parsed.error || 'Could not reset your password. The link may have expired.');
-    }
-    return parsed;
-  }
+    const partnerId = data.user && data.user.id;
 
-  // ---- 6. Profile lookup (Table Storage, fast; not the Excel sheet) ---
-  async function getPartnerProfileByEmail(email) {
-    let res, parsed;
     try {
-      res = await fetch(PROFILE_URL + '?email=' + encodeURIComponent(email));
-      parsed = await res.json().catch(() => ({}));
+      const { res, parsed } = await postJson(SAVE_PROFILE_URL, { partnerId, companyName, firstName, lastName, email, phone });
+      if (!res.ok || !parsed.ok) {
+        console.warn('[partner-api] Excel profile save failed:', parsed.error || res.status);
+      }
     } catch (e) {
-      throw _networkError('the account service', e);
+      // The Supabase account is already real and usable — don't fail
+      // registration just because the Excel write hiccuped. Log it so it
+      // can be manually backfilled into the Partners sheet if needed.
+      console.warn('[partner-api] Excel profile save failed:', e.message);
     }
-    if (!res.ok || !parsed.ok) return null;
-    return parsed;
+
+    DataStore.createReferralSourceForCompany(companyName);
+
+    // If "Confirm email" is off in Supabase, a session comes back
+    // immediately and the partner is already logged in.
+    if (data.session) _storeSession(data.session, data.user, companyName);
+
+    return { ok: true, partnerId, email, companyName, signedIn: !!data.session };
   }
 
-  // ---- 7. Who's logged in right now (reads the local session DataStore
-  // set from loginPartner()/createPartnerAccount() above) --------------
+  // ---- 2. Login: real, cross-device (Supabase Auth) -------------------
+  async function loginPartner(email, password) {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message || 'Incorrect email or password.');
+    const meta = (data.user && data.user.user_metadata) || {};
+    _storeSession(data.session, data.user, meta.companyName);
+    DataStore.createReferralSourceForCompany(meta.companyName);
+    return DataStore.getSession();
+  }
+
+  // ---- 3. Forgot password: real Supabase reset email -------------------
+  async function sendPasswordResetEmail(email) {
+    const redirectTo = window.location.origin + '/reset-password.html';
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) throw new Error(error.message || 'Could not send the reset email.');
+    return { ok: true };
+  }
+
+  // ---- 4. Complete the reset -- call from reset-password.html AFTER the
+  // partner arrives via the emailed link. Supabase's SDK auto-detects the
+  // recovery session from the URL on page load, so no manual token is
+  // needed here, unlike the earlier custom-token approach.
+  async function resetPassword(newPassword) {
+    const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+    if (error) throw new Error(error.message || 'Could not reset your password. The link may have expired — request a new one.');
+    return { ok: true };
+  }
+
+  // ---- 5. Who's logged in right now (local session mirror) ------------
   function getLoggedInPartner() {
     return DataStore.getSession();
   }
 
-  // ---- 8/9. Local zero-state dashboard data (dashboard.html at the ----
-  // repo root only — NOT the real MedBetterHealth referral dashboard).
-  // Kept so that page keeps working unchanged; unrelated to the account
-  // system above. See the file header note on "Open Referral Dashboard".
+  // ---- 6/7. Local zero-state dashboard data (dashboard.html at the ----
+  // repo root only — NOT the real MedBetterHealth referral dashboard,
+  // and unrelated to the Supabase account system above.
   async function getPartnerDashboardData(referralSource) {
     const source = DataStore.getReferralSourceByName(referralSource);
     return (source && source.stats) || DataStore.emptyStats();
@@ -188,11 +158,9 @@ const PartnerAPI = (() => {
 
   return {
     createPartnerAccount,
-    savePartnerProfileToExcel,
     loginPartner,
     sendPasswordResetEmail,
     resetPassword,
-    getPartnerProfileByEmail,
     getLoggedInPartner,
     getPartnerDashboardData,
     getReferralsByReferralSource,
