@@ -153,8 +153,8 @@
   </div>
 </div>
 
-<script src="data-store.js?v=2"></script>
-<script src="partner-api.js?v=3"></script>
+<script src="data-store.js?v=4"></script>
+<script src="partner-api.js?v=4"></script>
 <script src="phone-format.js"></script>
 <script>
   // Step 1 answers are held in memory until step 2 completes, then both
@@ -241,13 +241,20 @@
     if (!valid) return;
 
     try {
-      // Goes through PartnerAPI so this is ready to hit the real Partner
-      // Dashboard backend later with no change here — see partner-api.js.
+      // Real registration: creates real, cross-device dashboard access
+      // via mbh-dashboard-api and best-effort instantly activates it
+      // with the password just chosen — see partner-api.js's file header.
       const result = await PartnerAPI.createPartnerAccount({
         email: step1Data.email,
         password: step1Data.password,
         companyName, firstName, lastName, phone
       });
+      if (result.activatedSession) {
+        // Instant activation worked — already really, cross-device
+        // logged in. Skip straight to the portal, no extra step needed.
+        window.location.href = 'portal.html';
+        return;
+      }
       const dashParam = (result.dashboardAccess && result.dashboardAccess.sent) ? 'sent' : 'pending';
       window.location.href = 'login.html?registered=1&dash=' + dashParam;
     } catch (err) {
