@@ -1,15 +1,28 @@
 /*
  * data-store.js
- * ------------------------------------------------------------------
- * Client-side persistence layer for the GUIDE Partnership Portal.
- *
- * Everything in this file reads/writes to the browser's localStorage.
- * That is intentional for now — there is no backend yet. Every function
- * is written as an async function returning data/throwing errors the
- * same way a real fetch() call to a server would, so the ONLY thing
- * that needs to change when a real backend/database exists is the
- * inside of these functions — every page that calls DataStore.* does
- * not need to change at all.
+ * ══════════════════════════════════════════════════════════════════
+ * ⚠️  AUTH NOTE (read before touching login/register) — as of
+ * 2026-07-09, REAL authentication no longer lives in this file.
+ * login.html and index.html call PartnerAPI.loginPartner() /
+ * PartnerAPI.createPartnerAccount() (partner-api.js), which hit the
+ * real mbh-dashboard-api backend — the same one the main dashboard's
+ * partner.html already uses. That's what makes an account work across
+ * devices/browsers. This file's own login()/registerUser() functions
+ * below are localStorage-only and are kept only as an unused
+ * fallback/reference — DO NOT wire a login form back to
+ * DataStore.login() directly, that would silently reintroduce the
+ * "works on my computer, invalid on another" bug this was built to fix.
+ * ══════════════════════════════════════════════════════════════════
+ * What THIS file still legitimately owns (all local/cosmetic, not
+ * auth): referral-source records + stats/referrals for this portal's
+ * own zero-state dashboard.html (root of the repo — the REAL partner
+ * data view is the main dashboard's partner.html), the local
+ * dashboardAccessStatus mirror (so the portal can show "activation
+ * email sent" without an extra API call just to check), and getSession()
+ * /setSession()/requireAuth()/logout(), which read/write one
+ * localStorage key that PartnerAPI now populates from the REAL backend's
+ * response — so every page reading DataStore.getSession() keeps working
+ * unchanged no matter which backend actually authenticated the partner.
  *
  * Data model:
  *   users:            { id, email, password, companyName, firstName,
@@ -17,16 +30,21 @@
  *   referralSources:  { id, name, createdAt, stats:REFERRAL_STATUSES-shaped
  *                        object, referrals: [{id, status, receivedAt, note}] }
  *   session:          { userId, email, companyName, referralSourceId, loggedInAt }
- *
- * NOTE ON PRODUCTION USE: this file is a demo-only fallback so the GUIDE
- * Partnership Portal works end-to-end before the real Partner Dashboard
- * backend is wired up. It must not be treated as the production backend —
- * every partner's data lives only in their own browser here. See
- * partner-api.js for the integration seam that swaps this out for real
- * API calls once the live dashboard's backend/API is available.
  * ------------------------------------------------------------------
  */
 const DataStore = (() => {
+  // Only affects THIS file's own login()/registerUser() (unused by any
+  // page — see header). Real auth is PartnerAPI.loginPartner(), backed
+  // by mbh-dashboard-api, not this flag.
+  const DEMO_MODE = true;
+  if (DEMO_MODE && typeof console !== 'undefined') {
+    console.warn(
+      '%c[DataStore] Note: DataStore.login()/registerUser() are localStorage-only and unused by the live login/register forms.\n' +
+      'Real authentication is PartnerAPI.loginPartner()/createPartnerAccount() (partner-api.js), backed by mbh-dashboard-api.\n' +
+      'See the header comment in data-store.js for details.',
+      'color:#b45309;font-weight:bold;'
+    );
+  }
   const USERS_KEY = 'guide_users_v1';
   const SOURCES_KEY = 'guide_referral_sources_v1';
   const SESSION_KEY = 'guide_session_v1';
@@ -172,8 +190,14 @@ const DataStore = (() => {
     if (!isValidPhone(phone)) throw new Error('Please enter a valid 10-digit phone number.');
 
     const users = readAll(USERS_KEY);
+    // DEMO_MODE limitation worth knowing: this duplicate check only sees
+    // accounts already registered in THIS browser. If the same partner
+    // already registered on a different device/browser, this will NOT
+    // catch it — they'll silently get a second, separate local account
+    // with no warning. That's another symptom of the same root cause
+    // (no shared backend), not a separate bug.
     if (users.some(u => u.email === norm)) {
-      throw new Error('An account with this email already exists. Please sign in instead.');
+      throw new Error('An account with this email already exists on this device/browser. Please sign in instead.');
     }
 
     const referralSource = createReferralSourceForCompany(companyName);
@@ -198,10 +222,29 @@ const DataStore = (() => {
     return user;
   }
 
+  // As of 2026-07-09, login.html no longer calls this function — real
+  // login goes through PartnerAPI.loginPartner(), which hits the real
+  // mbh-dashboard-api backend and is correct across devices. This
+  // function is kept only as a fallback/reference and is NOT wired into
+  // any page's login form anymore. Do not re-wire a login form to call
+  // this directly — that would silently reintroduce the cross-device bug.
   async function login(email, password) {
     const user = await findUserByEmail(email);
-    if (!user || user.password !== password) {
-      throw new Error('Incorrect email or password.');
+    // DEMO_MODE distinction (see file header): "no user found" almost
+    // always means "this account was registered on a different browser
+    // or device" rather than a typo, since accounts never leave the
+    // browser they were created in. Say that plainly instead of a
+    // generic "invalid password" that sends people down the wrong
+    // troubleshooting path.
+    if (!user) {
+      throw new Error(
+        DEMO_MODE
+          ? 'Account not found on this device/browser. This portal currently stores accounts locally per-browser (demo mode) — if you registered on a different computer or browser, that account will not be found here. A shared production backend is required to fix this permanently; contact MedBetterHealth if you need access restored now.'
+          : 'Incorrect email or password.'
+      );
+    }
+    if (user.password !== password) {
+      throw new Error('Incorrect password. Please try again.');
     }
     const session = {
       userId: user.id,
@@ -223,6 +266,17 @@ const DataStore = (() => {
     } catch (e) {
       return null;
     }
+  }
+
+  // Writes a session object directly (same shape/key as login() used to
+  // produce). PartnerAPI.loginPartner()/tryImmediateActivation() call
+  // this after a REAL mbh-dashboard-api login/activation succeeds, so
+  // every page that already reads DataStore.getSession()/requireAuth()
+  // (portal.html, dashboard.html) keeps working with zero changes,
+  // regardless of which backend actually authenticated the partner.
+  function setSession(session) {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    return session;
   }
 
   function logout() {
@@ -297,6 +351,7 @@ const DataStore = (() => {
     login,
     logout,
     getSession,
+    setSession,
     requireAuth,
     findUserByEmail,
     createReferralSourceForCompany,
