@@ -30,6 +30,7 @@ const DataStore = (() => {
   const USERS_KEY = 'guide_users_v1';
   const SOURCES_KEY = 'guide_referral_sources_v1';
   const SESSION_KEY = 'guide_session_v1';
+  const ACCESS_KEY = 'guide_dashboard_access_v1';
 
   // ---- low-level storage helpers -----------------------------------
   function readAll(key) {
@@ -241,6 +242,42 @@ const DataStore = (() => {
     return session;
   }
 
+  // ---- main dashboard access record (mirrors the real backend's -------
+  // invitation state locally, purely so THIS portal can show the
+  // partner/admin a status like "activation email sent" without calling
+  // the real API just to check). This is NOT the source of truth for
+  // login — mbh-dashboard-api is. See partner-api.js's
+  // createPartnerDashboardAccess() for the real call this mirrors.
+  //   { accessId, partnerId, email, referralSourceName,
+  //     status: 'pending' | 'sent' | 'failed',
+  //     token, invitationLink, requestedAt, messageId, error, lastLoginAt }
+  function setDashboardAccessStatus(email, patch) {
+    const norm = normalizeEmail(email);
+    const all = readAll(ACCESS_KEY);
+    const user = readAll(USERS_KEY).find(u => u.email === norm);
+    let rec = all.find(a => a.email === norm);
+    if (!rec) {
+      rec = {
+        accessId: makeId('acc'),
+        partnerId: user ? user.id : null,
+        email: norm,
+        referralSourceName: user ? user.companyName : null,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        lastLoginAt: null
+      };
+      all.push(rec);
+    }
+    Object.assign(rec, patch);
+    writeAll(ACCESS_KEY, all);
+    return rec;
+  }
+
+  function getDashboardAccessStatus(email) {
+    const norm = normalizeEmail(email);
+    return readAll(ACCESS_KEY).find(a => a.email === norm) || null;
+  }
+
   // ---- password reset (placeholder only) ----------------------------
   // Intentionally does NOT implement real recovery logic. This is a stub
   // so the UI/flow is in place; wire it up to a real email service (e.g.
@@ -265,6 +302,8 @@ const DataStore = (() => {
     createReferralSourceForCompany,
     getReferralSource,
     getReferralSourceByName,
+    setDashboardAccessStatus,
+    getDashboardAccessStatus,
     requestPasswordReset,
     REFERRAL_STATUSES,
     STATUS_LABELS,
