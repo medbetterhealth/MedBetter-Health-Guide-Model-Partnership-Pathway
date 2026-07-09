@@ -110,7 +110,8 @@
   </div>
 </div>
 
-<script src="data-store.js"></script>
+<script src="data-store.js?v=4"></script>
+<script src="partner-api.js?v=4"></script>
 <script>
   function setError(fieldId, message) {
     const input = document.getElementById(fieldId);
@@ -161,12 +162,19 @@
     if (!password) { setError('loginPassword', 'Password is required.'); valid = false; } else setError('loginPassword', '');
     if (!valid) return;
 
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.dataset.origLabel = submitBtn.textContent; submitBtn.textContent = 'Signing in…'; }
     try {
-      await DataStore.login(email, password);
+      // Real, cross-device login — hits mbh-dashboard-api directly (the
+      // same backend partner.html uses), not localStorage. See
+      // partner-api.js's file header for why this replaced DataStore.login().
+      await PartnerAPI.loginPartner(email, password);
       const next = params.get('next');
       window.location.href = next ? decodeURIComponent(next) : 'portal.html';
     } catch (err) {
       showAlert(err.message || 'Unable to sign in.');
+    } finally {
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = submitBtn.dataset.origLabel || 'Sign In'; }
     }
   });
 </script>
