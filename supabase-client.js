@@ -18,7 +18,9 @@
  * security rules if leaked.
  * ------------------------------------------------------------------
  */
-const SUPABASE_URL = 'REPLACE_WITH_YOUR_SUPABASE_PROJECT_URL';       // e.g. https://abcdefghijk.supabase.co
-const SUPABASE_ANON_KEY = 'REPLACE_WITH_YOUR_SUPABASE_ANON_PUBLIC_KEY';
+const SUPABASE_URL = 'https://yjfubzjkqygimfboapgk.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_F0nKeadU_X6Id07pDSM_mg_8pOw0BXJ';
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+
