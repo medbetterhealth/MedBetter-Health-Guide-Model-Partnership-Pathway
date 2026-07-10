@@ -105,8 +105,11 @@ const PartnerAPI = (() => {
   }
 
   // ---- 4. Forgot password: real email via Microsoft Graph -------------
+  // Longer timeout than the default -- this call makes two sequential
+  // hops (Microsoft login token, then Graph sendMail), which can be slow
+  // right after a Function App cold start.
   async function sendPasswordResetEmail(email) {
-    const { res, parsed } = await postJson(REQUEST_RESET_URL, { email });
+    const { res, parsed } = await postJson(REQUEST_RESET_URL, { email }, 35000);
     if (!res.ok) {
       throw new Error(parsed.error || 'Could not send the reset email. Please try again.');
     }
