@@ -37,9 +37,9 @@
   .band-p2{flex:0 0 12.5%;background:#e4eef9;}
   .band-p3{flex:0 0 12.5%;background:#e3f3ec;}
   .band-p4{flex:0 0 12.5%;background:#fdeee7;}
-  .band-label{position:absolute;top:14px;left:50%;transform:translateX(-50%);text-align:center;width:auto;white-space:nowrap;pointer-events:none;background:rgba(255,255,255,.82);padding:7px 16px;border-radius:20px;box-shadow:0 1px 4px rgba(0,0,0,.08);z-index:4;}
-  .band-label .p{font-weight:700;font-size:14px;color:#1a2b3c;}
-  .band-label .n{font-size:12px;color:#5f7387;}
+  .band-label{position:absolute;top:14px;left:50%;transform:translateX(-50%);text-align:center;width:auto;max-width:calc(100% - 14px);box-sizing:border-box;white-space:normal;pointer-events:none;background:rgba(255,255,255,.9);padding:7px 10px;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);z-index:4;}
+  .band-label .p{font-weight:700;font-size:14px;color:#1a2b3c;white-space:nowrap;}
+  .band-label .n{font-size:11.5px;color:#5f7387;line-height:1.25;word-break:break-word;}
 
   .ribbon{position:absolute;inset:0;width:100%;height:100%;z-index:1;}
 
