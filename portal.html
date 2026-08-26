@@ -33,10 +33,12 @@
   .runway{position:relative;width:1120px;height:560px;margin:0 auto;}
   .bands{position:absolute;left:0;right:0;top:0;height:470px;display:flex;border-radius:18px;overflow:hidden;}
   .band{height:100%;position:relative;}
-  .band-p1{flex:0 0 62.5%;background:#eef1f4;}
-  .band-p2{flex:0 0 12.5%;background:#e4eef9;}
-  .band-p3{flex:0 0 12.5%;background:#e3f3ec;}
-  .band-p4{flex:0 0 12.5%;background:#fdeee7;}
+  /* 3 bands across the full width — Phase 4 removed. Steps 1-4 sit under
+     Phase 1 (x70-490), step 5 under Phase 2 (x630), step 6 + the milestone
+     under Phase 3 (x770-910).                                              */
+  .band-p1{flex:0 0 50%;background:#eef1f4;}
+  .band-p2{flex:0 0 20%;background:#e4eef9;}
+  .band-p3{flex:0 0 30%;background:#e3f3ec;}
   .band-label{position:absolute;top:14px;left:50%;transform:translateX(-50%);text-align:center;width:auto;max-width:calc(100% - 14px);box-sizing:border-box;white-space:normal;pointer-events:none;background:rgba(255,255,255,.9);padding:7px 10px;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);z-index:4;}
   .band-label .p{font-weight:700;font-size:14px;color:#1a2b3c;white-space:nowrap;}
   .band-label .n{font-size:11.5px;color:#5f7387;line-height:1.25;word-break:break-word;}
@@ -455,11 +457,10 @@
         <div class="band band-p1"><div class="band-label"><div class="p">Phase 1:</div><div class="n">Contracting &amp; Approval</div></div></div>
         <div class="band band-p2"><div class="band-label"><div class="p">Phase 2:</div><div class="n">Financial Setup</div></div></div>
         <div class="band band-p3"><div class="band-label"><div class="p">Phase 3:</div><div class="n">Operations &amp; Payment</div></div></div>
-        <div class="band band-p4"><div class="band-label"><div class="p">Phase 4:</div><div class="n">Approved by Medicare</div></div></div>
       </div>
       <svg class="ribbon" id="ribbon" viewBox="0 0 1120 560" preserveAspectRatio="none"></svg>
       <div id="hexes"></div>
-      <!-- 6 to 10 weeks timeline bracket: step 3 → end of Phase 4 -->
+      <!-- 6 to 10 weeks timeline bracket: step 2 → the approval milestone -->
       <div class="timeline-bracket" id="timelineBracket">
         <div class="tb-line"></div>
         <div class="tb-pill">⏱️ Contract submission (Step 2) → Approval: <strong>6 to 10 weeks</strong></div>
@@ -787,7 +788,7 @@ function drawHexes(){
       <div class="hex-shape">${tag}<span class="hex-num">${s.n}</span></div>`;
     wrap.appendChild(el);
   });
-  // Phase 4 milestone node — Approved! Send Referral
+  // Milestone node — Approved! Send Referral
   const g=document.createElement('div');
   g.className='hex milestone-node';
   g.style.left=MILESTONE_NODE.x+'px';g.style.top=MILESTONE_NODE.y+'px';
@@ -1227,7 +1228,7 @@ function openMilestone(){
       </div>
       <button class="ms-btn" onclick="openReferralModal()">➕ Send a Referral</button>
       <button class="ms-btn" style="background:transparent;border:2px solid #fff;color:#fff;margin-top:10px" onclick="openPartnerReferralDashboard()">📊 Access Dashboard</button>
-      <div class="ms-sub">Phase 4 · Approved by Medicare</div>
+      <div class="ms-sub">Approved by Medicare</div>
     </div>`;
   document.getElementById('runwayView').classList.add('hidden');
   document.getElementById('stepView').classList.remove('show');
