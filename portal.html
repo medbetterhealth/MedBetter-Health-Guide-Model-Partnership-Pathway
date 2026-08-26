@@ -697,6 +697,10 @@ const RUN = {
      title:'Agreement & Program Review',noVideo:true,
      subhead:'Step 2: The Documentation',
      tasks:['Review & sign the Partner Organization Agreement','Review the CMS GUIDE Model Overview'],
+     /* Partner Organization Information Form — moved here from step 3.
+        openFormAfterDoc:1 renders it between the two documents below. */
+     openForm:true,openFormLink:'https://docs.google.com/forms/d/e/1FAIpQLSfK0e6jgZ1GeNwZ_Ltik03X5ZAb-dNR_F-Z-iZBKDW4AlnM1A/viewform',
+     openFormAfterDoc:1,
      docs:[
        {name:'Partner Organization Agreement',status:'sign',link:'https://app.hellosign.com/s/1QUsC82v'},
        {name:'CMS GUIDE Model Overview Document',status:'read',link:'https://medbetterhealthorg-my.sharepoint.com/:b:/g/personal/dr_erik_medbetterhealth_org/IQBReaVqSqWRRrdlqv17uVJ-AcxozkEjHXiQNnlLqOi_9kw?e=AXxoXa'}
@@ -705,7 +709,7 @@ const RUN = {
     {n:3,phase:1,actor:'partner',x:350,y:210,pos:'above',
      section:'Information Submission and the Medicare Approval Window',
      title:'Information Submission & Medicare Approval',noVideo:true,
-     openForm:true,openFormLink:'https://docs.google.com/forms/d/e/1FAIpQLSfK0e6jgZ1GeNwZ_Ltik03X5ZAb-dNR_F-Z-iZBKDW4AlnM1A/viewform',
+     /* The Partner Organization Information Form section now lives in step 2. */
      tasks:['Complete the Partner Organization Information Form','MedBetterHealth submits your info to the Medicare portal','Medicare reviews (6 to 10 weeks) — no partner action needed','Official approval email sent when complete'],
      docs:[],
      subaction:{title:'MedBetterHealth Action',text:"Securely submit your agency's information to the Medicare portal."},
@@ -928,9 +932,16 @@ function openStep(n){
     right+=`<div class="blk"><span class="lbl">🗣️ Talk Track — Handling Common Questions</span>
       ${s.faqs.map((f,i)=>`<div class="faq" id="faq-${i}"><div class="faq-q" onclick="document.getElementById('faq-${i}').classList.toggle('open')"><span>${f.q}</span><span class="chev">▾</span></div><div class="faq-a">${f.a}</div></div>`).join('')}</div>`;
   } else {
-    if(s.openForm) right+=`<div class="blk"><span class="lbl">📝 Complete the Partner Organization Information Form</span><button class="openform" onclick="${s.openFormLink?`window.open('${s.openFormLink}','_blank')`:`alert('Opens: Partner Organization Information Form')`}">🖊️ Open Form</button></div>`;
+    // Unchanged markup — hoisted so it can also be placed inside Documents.
+    const openFormHTML = s.openForm ? `<div class="blk"><span class="lbl">📝 Complete the Partner Organization Information Form</span><button class="openform" onclick="${s.openFormLink?`window.open('${s.openFormLink}','_blank')`:`alert('Opens: Partner Organization Information Form')`}">🖊️ Open Form</button></div>` : '';
+    const formInDocs = s.openForm && typeof s.openFormAfterDoc === 'number' && s.docs && s.docs.length > s.openFormAfterDoc;
+    if(s.openForm && !formInDocs) right+=openFormHTML;
     if(s.subaction) right+=`<div class="subaction"><span class="st">${s.subaction.title}</span>${s.subaction.text}</div>`;
-    if(s.docs.length) right+=`<div class="blk"><span class="lbl">📄 Documents</span>${renderDocs(s.docs)}</div>`;
+    if(s.docs.length) right+=`<div class="blk"><span class="lbl">📄 Documents</span>${
+      formInDocs
+        ? renderDocs(s.docs.slice(0,s.openFormAfterDoc)) + openFormHTML + renderDocs(s.docs.slice(s.openFormAfterDoc))
+        : renderDocs(s.docs)
+    }</div>`;
     if(s.window) right+=`<div class="window"><div class="wt">${s.window.title}</div><div class="wbig">⏳ ${s.window.big}</div><div class="wnote">${s.window.note}</div></div>`;
     if(s.official) right+=`<div class="subaction"><span class="st">✅ ${s.official.split('—')[0].trim()}</span>${s.official.split('—')[1]||''}</div>`;
     if(s.capabilities) right+=`<div class="caps"><div class="ct">🔓 Capabilities Unlocked</div><ul>${s.capabilities.map(c=>`<li>${c}</li>`).join('')}</ul></div>`;
