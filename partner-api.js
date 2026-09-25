@@ -160,6 +160,75 @@ const PartnerAPI = (() => {
     return getPartnerDashboardData(session.companyName);
   }
 
+  // ---- 10. SSO handoff to the real MBH dashboard (STAGED, NOT LIVE) ----
+  // These three calls require NEW mbh-referral-endpoints Functions that
+  // do not exist yet: /send-verification-email, /verify-email,
+  // /create-dashboard-handoff. Do not wire these into portal.html/
+  // login.html until that backend work is deployed and confirmed --
+  // wiring them earlier would just produce 404s where a partner expects
+  // a working "Open Referral Dashboard" button.
+  //
+  // Security notes (why these calls are shaped this way):
+  //  - createDashboardHandoff() sends the CURRENT PORTAL SESSION TOKEN in
+  //    the Authorization header, never the email/password again -- the
+  //    backend re-derives the email server-side from that session, the
+  //    same way getPartnerProfileByEmail-style calls already trust a
+  //    session rather than a client-supplied identity.
+  //  - It returns a short-lived, single-use, opaque code -- NOT the
+  //    partner's email, NOT a reusable token. The caller (portal.html)
+  //    must navigate to the dashboard with ONLY that code in the query
+  //    string (?handoff=<code>), never ?email=.
+  //  - The backend is expected to refuse this call (a clear, specific
+  //    error) when the account's emailVerified is not true -- see
+  //    sendVerificationEmail/verifyEmailToken below, which exist
+  //    specifically so a partner can complete that one prerequisite
+  //    step before SSO becomes available to them.
+  async function sendVerificationEmail() {
+    const session = DataStore.getSession();
+    if (!session || !session.sessionToken) throw new Error('Not logged in.');
+    const { res, parsed } = await postJson(_API + '/send-verification-email', {}, 35000);
+    // NOTE: once this Function exists, pass the session token via
+    // Authorization header here (same pattern as createDashboardHandoff
+    // below), not in the JSON body.
+    if (!res.ok || !parsed.ok) {
+      throw new Error(parsed.error || 'Could not send the verification email. Please try again.');
+    }
+    return parsed; // { ok: true, message }
+  }
+
+  async function createDashboardHandoff() {
+    const session = DataStore.getSession();
+    if (!session || !session.sessionToken) throw new Error('Not logged in.');
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
+    let res;
+    try {
+      res = await fetch(_API + '/create-dashboard-handoff', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.sessionToken
+        },
+        signal: ctrl.signal
+      });
+    } catch (e) {
+      clearTimeout(timer);
+      throw _networkError('the dashboard handoff service', e);
+    }
+    clearTimeout(timer);
+    let parsed = {};
+    try { parsed = await res.json(); } catch (_) {}
+    if (res.status === 403 && parsed.code === 'email_not_verified') {
+      const e = new Error(parsed.error || 'Please verify your email before opening the dashboard.');
+      e.code = 'email_not_verified';
+      throw e;
+    }
+    if (!res.ok || !parsed.ok || !parsed.code) {
+      throw new Error(parsed.error || 'Could not prepare dashboard sign-in. Please try again.');
+    }
+    return parsed.code; // opaque, single-use, ~90s TTL -- never the email
+  }
+
   return {
     createPartnerAccount,
     loginPartner,
@@ -170,6 +239,8 @@ const PartnerAPI = (() => {
     getPartnerDashboardData,
     getReferralsByReferralSource,
     getPartnerReferrals,
-    getPartnerDashboardByLoggedInUser
+    getPartnerDashboardByLoggedInUser,
+    sendVerificationEmail,
+    createDashboardHandoff
   };
 })();
