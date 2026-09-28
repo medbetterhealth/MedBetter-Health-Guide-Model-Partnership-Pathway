@@ -79,9 +79,25 @@ const ReferralWorkflow = (() => {
   }
 
   // ---- 1. Partner side: submit a new pending referral -------------------
+  // Requires the signed-in Portal session: the backend stamps the
+  // referral's source from the authenticated account and ignores any
+  // referralSource sent here.
   async function submitPendingReferral(referral) {
     if (USE_REMOTE) {
-      return postJson(`${API_BASE}/submit-referral`, referral);
+      const session = (typeof DataStore !== 'undefined') ? DataStore.getSession() : null;
+      if (!session || !session.sessionToken) {
+        const e = new Error('Your session has expired. Please sign in again.'); e.code = 'not_signed_in'; throw e;
+      }
+      const res = await fetch(`${API_BASE}/submit-referral`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.sessionToken },
+        body: JSON.stringify(referral)
+      });
+      const parsed = await res.json().catch(() => ({}));
+      if (!res.ok || !parsed.ok) {
+        const e = new Error(parsed.error || `Request failed (${res.status})`); e.code = parsed.code; throw e;
+      }
+      return parsed;
     }
     const record = {
       id: makeId(),

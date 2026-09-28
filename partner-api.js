@@ -96,6 +96,7 @@ const PartnerAPI = (() => {
       referralSourceId: null,
       referralSource: parsed.referralSource || parsed.companyName,
       partnerId: parsed.partnerId,
+      emailVerified: parsed.emailVerified === true,
       sessionToken: parsed.token,
       loggedInAt: new Date().toISOString()
     };
