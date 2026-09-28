@@ -489,7 +489,7 @@
 </div>
 
 <script src="data-store.js?v=4"></script>
-<script src="partner-api.js?v=8"></script>
+<script src="partner-api.js?v=9"></script>
 <script src="referral-workflow.js?v=2"></script>
 <script src="phone-format.js?v=2"></script>
 <script>
@@ -1316,16 +1316,45 @@ function updateMeter(){
   document.getElementById('progText').textContent=`${RUN.done.length} of ${TOTAL} complete`;
 }
 function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2600);}
-// Opens the REAL main dashboard's partner-facing page (partner.html —
-// NOT dashboard.html, which is the internal staff/admin view). Prefills
-// the login email from this partner's GUIDE portal session so they only
-// need to type their dashboard password. If they haven't activated
-// dashboard access yet, partner.html's own login screen explains that.
-function openPartnerReferralDashboard(){
-  var session = (typeof DataStore !== 'undefined') ? DataStore.getSession() : null;
-  var url = 'https://mbhdashboard.z13.web.core.windows.net/partner.html';
-  if(session && session.email) url += '?email=' + encodeURIComponent(session.email);
-  window.open(url, '_blank');
+// Opens the REAL main dashboard's partner-facing page (partner.html --
+// NOT dashboard.html's staff view) signed in via a server-validated,
+// single-use handoff code, so the partner never types a second password.
+// The dashboard decides authorization from its OWN existing partner
+// account for this email; if there isn't an Active one (or anything else
+// fails) it falls back to its normal password sign-in screen.
+var MBH_PARTNER_DASHBOARD_URL = 'https://mbhdashboard.z13.web.core.windows.net/partner.html';
+async function openPartnerReferralDashboard(){
+  // Open the tab synchronously (inside the click) so popup blockers allow
+  // it, then point it at the dashboard once the handoff code is ready.
+  var tab = window.open('', '_blank');
+  if(tab){ try { tab.document.write('<p style="font-family:Arial,sans-serif;padding:24px;color:#3d5266">Signing you in to your referral dashboard…</p>'); } catch(_){} }
+  try {
+    var code = await PartnerAPI.createDashboardHandoff();
+    var url = MBH_PARTNER_DASHBOARD_URL + '?handoff=' + encodeURIComponent(code);
+    if(tab) tab.location.replace(url); else window.location.href = url;
+  } catch(e){
+    if(tab) tab.close();
+    if(e.code === 'email_not_verified'){ await verifyPortalEmailForDashboard(); return; }
+    if(e.code === 'not_signed_in'){ alert(e.message); if(typeof DataStore!=='undefined')DataStore.logout(); location.href='login.html'; return; }
+    // Any other failure: plain password sign-in on the dashboard still works.
+    alert((e && e.message ? e.message + '\n\n' : '') + 'Opening the dashboard sign-in page instead.');
+    window.open(MBH_PARTNER_DASHBOARD_URL, '_blank');
+  }
+}
+// One-time step before the first dashboard handoff: prove this Portal
+// account's email by entering the 6-digit code we email to it.
+async function verifyPortalEmailForDashboard(){
+  try {
+    var sent = await PartnerAPI.sendVerificationEmail();
+    if(!sent.alreadyVerified){
+      var entered = prompt('One-time step: to connect your referral dashboard, we just emailed a 6-digit code to ' + (DataStore.getSession() || {}).email + '.\n\nEnter the code:');
+      if(entered === null) return;
+      await PartnerAPI.verifyEmailCode(entered);
+    }
+    alert('Email verified. Click Dashboard again to open your referral dashboard.');
+  } catch(e){
+    alert(e && e.message ? e.message : 'Could not verify your email. Please try again.');
+  }
 }
 function logout(){if(confirm('Sign out?')){if(typeof DataStore!=='undefined')DataStore.logout();location.href='login.html';}}
 init();
