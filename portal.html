@@ -1330,7 +1330,12 @@ async function openPartnerReferralDashboard(){
   if(tab){ try { tab.document.write('<p style="font-family:Arial,sans-serif;padding:24px;color:#3d5266">Signing you in to your referral dashboard…</p>'); } catch(_){} }
   try {
     var code = await PartnerAPI.createDashboardHandoff();
-    var url = MBH_PARTNER_DASHBOARD_URL + '?handoff=' + encodeURIComponent(code);
+    // `&email=` is intentionally EMPTY: the live dashboard.html's synchronous
+    // routing script only shows the partner UI (instead of the staff
+    // Microsoft sign-in) when invite/email/reset is present, and doesn't yet
+    // know about `handoff`. No email value is ever put in the URL; the
+    // handoff branch in dashboard.js runs first and strips the whole query.
+    var url = MBH_PARTNER_DASHBOARD_URL + '?handoff=' + encodeURIComponent(code) + '&email=';
     if(tab) tab.location.replace(url); else window.location.href = url;
   } catch(e){
     if(tab) tab.close();
