@@ -434,6 +434,13 @@
   .rm-fields-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 16px;margin-bottom:6px;}
   @media(max-width:700px){.rm-fields-grid{grid-template-columns:1fr 1fr;}}
   @media(max-width:460px){.rm-fields-grid{grid-template-columns:1fr;}}
+  .rp-upload{border:1.5px dashed #c9d6e3;border-radius:10px;padding:12px 14px;background:#f8fbfd;}
+  .rp-upload-hint{font-size:13px;color:#3d5266;margin-bottom:8px;}
+  .rp-upload-btn{display:inline-block;background:#fff;border:1px solid #c9d6e3;color:#0a3d6e;font-weight:600;font-size:13px;padding:8px 14px;border-radius:8px;cursor:pointer;}
+  .rp-upload-btn:hover{background:#eef4fa;}
+  .rp-upload-meta{font-size:11.5px;color:#8ca0b3;margin-top:6px;}
+  .rp-file{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:#1a2b3c;background:#fff;border:1px solid #e6ebf0;border-radius:8px;padding:6px 10px;margin-top:6px;}
+  .rp-file button{background:transparent;border:none;color:#8a1a1f;font-size:12.5px;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -490,7 +497,7 @@
 
 <script src="data-store.js?v=4"></script>
 <script src="partner-api.js?v=10"></script>
-<script src="referral-workflow.js?v=3"></script>
+<script src="referral-workflow.js?v=4"></script>
 <script src="phone-format.js?v=2"></script>
 <script>
 // ═══════════════════════════════════════════════════════════════
@@ -596,6 +603,15 @@ function goToAddPatientStep(){
         '<div class="field"><label>Caregiver Contact</label><input type="tel" id="rp-cgphone" placeholder="(305) 339-1756"></div>' +
       '</div>' +
       '<div class="field"><label>Notes</label><textarea id="rp-notes"></textarea></div>' +
+      '<div class="field"><label>Medical Notes <span style="font-weight:400;color:#8ca0b3">(optional)</span></label>' +
+        '<div class="rp-upload">' +
+          '<div class="rp-upload-hint">If you have any medical notes, upload them here.</div>' +
+          '<label class="rp-upload-btn" for="rp-files">📎 Upload file</label>' +
+          '<input type="file" id="rp-files" multiple accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,application/pdf,image/jpeg,image/png,image/heic,image/heif" style="display:none" onchange="rpAddFiles(this)">' +
+          '<div class="rp-upload-meta">PDF, JPG, PNG or HEIC · up to 10 MB each · up to 5 files</div>' +
+          '<div id="rp-file-list"></div>' +
+        '</div>' +
+      '</div>' +
       '<div id="rpAlert" style="display:none;background:#fdecec;border:1.5px solid #f2c4c5;color:#8a1a1f;border-radius:10px;padding:12px 14px;font-size:13px;margin-top:6px;"></div>' +
     '</div>' +
     '<div class="rm-footer">' +
@@ -611,6 +627,37 @@ function goToAddPatientStep(){
   if(typeof attachPhoneFormatting === 'function'){
     attachPhoneFormatting(document.getElementById('rp-cgphone'));
   }
+  RP_FILES = [];
+  rpRenderFiles();
+}
+
+// ── Optional medical-notes files for the referral being entered ──
+var RP_FILES = [];
+var RP_MAX_FILES = 5, RP_MAX_BYTES = 10 * 1024 * 1024;
+var RP_OK_EXT = /\.(pdf|jpe?g|png|heic|heif)$/i;
+function rpAddFiles(input){
+  rmShowAlert('');
+  var picked = Array.prototype.slice.call(input.files || []);
+  input.value = '';
+  for(var i = 0; i < picked.length; i++){
+    var f = picked[i];
+    if(RP_FILES.length >= RP_MAX_FILES){ rmShowAlert('You can attach up to ' + RP_MAX_FILES + ' files.'); break; }
+    if(!RP_OK_EXT.test(f.name)){ rmShowAlert('"' + f.name + '" is not a supported file. Please upload a PDF, JPG, PNG or HEIC file.'); continue; }
+    if(f.size > RP_MAX_BYTES){ rmShowAlert('"' + f.name + '" is larger than 10 MB.'); continue; }
+    if(!f.size){ rmShowAlert('"' + f.name + '" is empty.'); continue; }
+    RP_FILES.push(f);
+  }
+  rpRenderFiles();
+}
+function rpRemoveFile(i){ RP_FILES.splice(i, 1); rpRenderFiles(); }
+function rpRenderFiles(){
+  var box = document.getElementById('rp-file-list');
+  if(!box) return;
+  box.innerHTML = RP_FILES.map(function(f, i){
+    var kb = f.size < 1024 * 1024 ? Math.max(1, Math.round(f.size / 1024)) + ' KB' : (f.size / 1024 / 1024).toFixed(1) + ' MB';
+    return '<div class="rp-file"><span>📄 ' + rmEscapeHtml(f.name) + ' <span style="color:#8ca0b3">· ' + kb + '</span></span>' +
+           '<button type="button" onclick="rpRemoveFile(' + i + ')">Remove</button></div>';
+  }).join('');
 }
 
 function rmShowAlert(message){
@@ -658,13 +705,33 @@ async function savePartnerReferral(){
     notes: document.getElementById('rp-notes').value.trim()
   };
 
+  // Upload any medical-notes files first (each once, even across a retry),
+  // then submit the referral with their upload ids.
+  var uploaded = {};
+  var saveBtn = document.querySelector('#rmCard .rm-footer .dash-btn');
+  async function uploadAndSubmit(){
+    if(saveBtn){ saveBtn.disabled = true; }
+    try {
+      for(var i = 0; i < RP_FILES.length; i++){
+        if(uploaded[i]) continue;
+        if(saveBtn) saveBtn.textContent = 'Uploading file ' + (i + 1) + ' of ' + RP_FILES.length + '…';
+        uploaded[i] = (await ReferralWorkflow.uploadReferralAttachment(RP_FILES[i])).uploadId;
+      }
+      if(saveBtn) saveBtn.textContent = 'Saving…';
+      referral.attachments = RP_FILES.map(function(_, i){ return uploaded[i]; });
+      await ReferralWorkflow.submitPendingReferral(referral);
+    } finally {
+      if(saveBtn){ saveBtn.disabled = false; saveBtn.textContent = '✅ Save'; }
+    }
+  }
+
   try{
-    await ReferralWorkflow.submitPendingReferral(referral);
+    await uploadAndSubmit();
     renderReferralSuccessStep();
   }catch(e){
     if(e.code === 'email_not_verified'){
       if(await ensurePortalEmailVerified()){
-        try { await ReferralWorkflow.submitPendingReferral(referral); renderReferralSuccessStep(); return; }
+        try { await uploadAndSubmit(); renderReferralSuccessStep(); return; }
         catch(e2){ rmShowAlert(e2.message || 'Something went wrong submitting this referral.'); return; }
       }
       rmShowAlert('Please verify your email to submit referrals.');

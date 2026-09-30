@@ -114,6 +114,31 @@ const ReferralWorkflow = (() => {
     return record;
   }
 
+  // ---- 1b. Partner side: upload one optional medical-notes file --------
+  // Sent to the backend (never straight to storage) with the Portal session;
+  // returns { uploadId, filename, size }. Pass the uploadIds as
+  // `attachments` on submitPendingReferral().
+  async function uploadReferralAttachment(file) {
+    const session = (typeof DataStore !== 'undefined') ? DataStore.getSession() : null;
+    if (!session || !session.sessionToken) {
+      const e = new Error('Your session has expired. Please sign in again.'); e.code = 'not_signed_in'; throw e;
+    }
+    const res = await fetch(`${API_BASE}/upload-referral-attachment`, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + session.sessionToken,
+        'Content-Type': file.type || 'application/octet-stream',
+        'X-Filename': encodeURIComponent(file.name || 'medical-notes')
+      },
+      body: file
+    });
+    const parsed = await res.json().catch(() => ({}));
+    if (!res.ok || !parsed.ok) {
+      const e = new Error(parsed.error || `Upload failed (${res.status})`); e.code = parsed.code; throw e;
+    }
+    return parsed;
+  }
+
   // ---- 2. Admin side: read pending referrals -----------------------------
   async function getPendingReferrals() {
     if (USE_REMOTE) {
@@ -195,6 +220,7 @@ const ReferralWorkflow = (() => {
 
   return {
     submitPendingReferral,
+    uploadReferralAttachment,
     getPendingReferrals,
     getReferralById,
     approvePendingReferral,
