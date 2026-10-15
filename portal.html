@@ -224,6 +224,12 @@
   .manual-head .mh-badge{background:linear-gradient(135deg,#0a3d6e,#d12128);color:#fff;font-size:11px;font-weight:700;padding:5px 11px;border-radius:8px;}
   .manual-head h3{font-size:18px;font-weight:700;color:#0a3d6e;}
   .manual-head .msub{font-size:12px;color:#8ca0b3;}
+  .manual-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 10px}
+  .mtab{flex:1 1 auto;min-width:180px;padding:11px 14px;border:1px solid #d6e0ea;background:#f4f8fc;color:#0a3d6e;border-radius:10px;font-weight:600;font-size:13.5px;cursor:pointer;font-family:inherit;text-align:center;transition:background .15s}
+  .mtab:hover{background:#e8f0f8}
+  .mtab.active{background:#0a3d6e;color:#fff;border-color:#0a3d6e}
+  .manual-pane{display:none}
+  .manual-pane.active{display:block}
   .msec{border:1.5px solid #e6ebf0;border-radius:12px;margin-bottom:12px;overflow:hidden;}
   .msec-h{padding:14px 16px;font-weight:700;font-size:15px;color:#1a2b3c;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:#f8fafb;}
   .msec-h:hover{background:#eef2f5;}
@@ -945,47 +951,127 @@ function complianceManual(){
       <div><h3>GUIDE Respite Workflow &amp; Compliance Manual</h3>
       <div class="msub">Standard Operating Procedures for Network Partners</div></div></div>
 
-    <div class="msec" id="ms1"><div class="msec-h" onclick="document.getElementById('ms1').classList.toggle('open')">The Primary Mandate: 4-Hour Billing Blocks <span class="chev">▾</span></div>
-      <div class="msec-b"><div class="msec-inner">
-        <div class="mandate-box"><div class="big">4 Hours = 1 Unit</div></div>
-        <div class="rule">Respite services must be billed in strictly 4-hour blocks.</div>
-        <div class="rule">Each unit represents one continuous block of respite care provided directly to the GUIDE-enrolled beneficiary.</div>
-        <div class="rule">Care must be delivered by qualified personnel and properly documented.</div>
-        <div class="warn">⚠️ Multiple units may be billed in a single day only if full 4-hour blocks are provided.</div>
-      </div></div></div>
+    <div class="manual-tabs">
+      <button class="mtab active" id="mtab-home" onclick="switchManualTab('home')">Home Care Agency Guidelines</button>
+      <button class="mtab" id="mtab-adc" onclick="switchManualTab('adc')">Adult Day Care — GUIDE Model Guidelines</button>
+      <button class="mtab" id="mtab-stf" onclick="switchManualTab('stf')">Short-Term Facilities</button>
+    </div>
 
-    <div class="msec" id="ms2"><div class="msec-h" onclick="document.getElementById('ms2').classList.toggle('open')">Billing Compliance: Valid vs. Denied Claims <span class="chev">▾</span></div>
-      <div class="msec-b"><div class="msec-inner"><div class="vd-grid">
-        <div class="vd vd-ok"><div class="vd-ic">✅</div><div class="vd-t">4 Continuous Hours</div><div class="vd-time">8:00 AM – 12:00 PM</div><div class="vd-d">4 hours of continuous, direct service. Complies with CMS GUIDE methodology.</div></div>
-        <div class="vd vd-no"><div class="vd-ic">❌</div><div class="vd-t">Partial / Split Blocks</div><div class="vd-time">e.g. 3 hours, or 8–10 AM + 2–4 PM</div><div class="vd-d">Billing for fewer than 4 hours is not permitted. Partial blocks (e.g., 2 or 3 hours) are not reimbursable. No prorated payment is allowed. Claims not meeting the 4-hour unit structure will be denied.</div></div>
-      </div></div></div></div>
+    <!-- ===== TAB 1: HOME CARE AGENCY (existing content) ===== -->
+    <div class="manual-pane active" id="pane-home">
+      <div class="msec" id="ms1"><div class="msec-h" onclick="document.getElementById('ms1').classList.toggle('open')">The Primary Mandate: 4-Hour Billing Blocks <span class="chev">▾</span></div>
+        <div class="msec-b"><div class="msec-inner">
+          <div class="mandate-box"><div class="big">4 Hours = 1 Unit</div></div>
+          <div class="rule">Respite services must be billed in strictly 4-hour blocks.</div>
+          <div class="rule">Each unit represents one continuous block of respite care provided directly to the GUIDE-enrolled beneficiary.</div>
+          <div class="rule">Care must be delivered by qualified personnel and properly documented.</div>
+          <div class="warn">⚠️ Multiple units may be billed in a single day only if full 4-hour blocks are provided.</div>
+        </div></div></div>
 
-    <div class="msec" id="ms3"><div class="msec-h" onclick="document.getElementById('ms3').classList.toggle('open')">National Standard Compensation Framework <span class="chev">▾</span></div>
-      <div class="msec-b"><div class="msec-inner"><div class="comp-grid">
-        <div class="comp"><div class="cl">The Base Rate</div><div class="cv">$2,625</div><div class="cd">Medicare established base allowance for respite care</div></div>
-        <div class="comp"><div class="cl">The Billing Unit</div><div class="cv">$138</div><div class="cd">Per standard 4-hour unit</div></div>
-        <div class="comp"><div class="cl">The Hourly Equivalent</div><div class="cv">$34.50</div><div class="cd">Effective hourly rate (calculated from $138 ÷ 4 hours)</div></div>
-      </div><button class="geo-btn" onclick="window.open('https://guide-respite-gaf.ianacare.com/','_blank')">📍 Geographic Rate Calculator</button>
-      </div></div></div>
+      <div class="msec" id="ms2"><div class="msec-h" onclick="document.getElementById('ms2').classList.toggle('open')">Billing Compliance: Valid vs. Denied Claims <span class="chev">▾</span></div>
+        <div class="msec-b"><div class="msec-inner"><div class="vd-grid">
+          <div class="vd vd-ok"><div class="vd-ic">✅</div><div class="vd-t">4 Continuous Hours</div><div class="vd-time">8:00 AM – 12:00 PM</div><div class="vd-d">4 hours of continuous, direct service. Complies with CMS GUIDE methodology.</div></div>
+          <div class="vd vd-no"><div class="vd-ic">❌</div><div class="vd-t">Partial / Split Blocks</div><div class="vd-time">e.g. 3 hours, or 8–10 AM + 2–4 PM</div><div class="vd-d">Billing for fewer than 4 hours is not permitted. Partial blocks (e.g., 2 or 3 hours) are not reimbursable. No prorated payment is allowed. Claims not meeting the 4-hour unit structure will be denied.</div></div>
+        </div></div></div></div>
 
-    <div class="msec" id="ms4"><div class="msec-h" onclick="document.getElementById('ms4').classList.toggle('open')">Perfecting the Invoice <span class="chev">▾</span></div>
-      <div class="msec-b"><div class="msec-inner">
-        <div class="inv-part"><div class="ip-n">1</div><div><div class="ip-t">Patient &amp; Provider</div><div class="ip-d">Client Name, who provided the service</div></div></div>
-        <div class="inv-part"><div class="ip-n">2</div><div><div class="ip-t">Date &amp; Time Log</div><div class="ip-d">Date of service, exact start/end times</div></div></div>
-        <div class="inv-part"><div class="ip-n">3</div><div><div class="ip-t">Unit Conversion</div><div class="ip-d">Hours converted to units: 4 hours = 1 unit</div></div></div>
-        <div class="inv-part"><div class="ip-n">4</div><div><div class="ip-t">Care Details</div><div class="ip-d">Specific ADLs/IADLs provided</div></div></div>
-        <div class="inv-part"><div class="ip-n">5</div><div><div class="ip-t">Attestation</div><div class="ip-d">Partner signature / attestation</div></div></div>
-        <button class="geo-btn" style="background:#0a3d6e" onclick="window.open('https://medbetterhealthorg-my.sharepoint.com/:b:/g/personal/dr_erik_medbetterhealth_org/IQCbadDZozZfQYTTuOUEya1eAe8atogPf-VculDb4gGR_aE?e=UBelyJ','_blank')">📄 View Example Invoice</button>
-      </div></div></div>
+      <div class="msec" id="ms3"><div class="msec-h" onclick="document.getElementById('ms3').classList.toggle('open')">National Standard Compensation Framework <span class="chev">▾</span></div>
+        <div class="msec-b"><div class="msec-inner"><div class="comp-grid">
+          <div class="comp"><div class="cl">The Base Rate</div><div class="cv">$2,625</div><div class="cd">Medicare established base allowance for respite care</div></div>
+          <div class="comp"><div class="cl">The Billing Unit</div><div class="cv">$138</div><div class="cd">Per standard 4-hour unit</div></div>
+          <div class="comp"><div class="cl">The Hourly Equivalent</div><div class="cv">$34.50</div><div class="cd">Effective hourly rate (calculated from $138 ÷ 4 hours)</div></div>
+        </div><button class="geo-btn" onclick="window.open('https://guide-respite-gaf.ianacare.com/','_blank')">📍 Geographic Rate Calculator</button>
+        </div></div></div>
 
-    <div class="msec" id="ms5"><div class="msec-h" onclick="document.getElementById('ms5').classList.toggle('open')">Submitting Your Invoice <span class="chev">▾</span></div>
-      <div class="msec-b"><div class="msec-inner">
-        <div class="rule">Submit all completed timesheets and invoices.</div>
-        <div class="submit-box">Route all documentation directly to:<div class="se">invoices@MedBetterHealth.org</div></div>
-        <div class="pay-note">💵 <strong>Payment timing:</strong> Payment is issued <strong>30 days from the date we receive your invoice.</strong></div>
-        <div style="font-size:12.5px;color:#5f7387;text-align:center;margin-top:10px">Clean, compliant invoices ensure rapid processing and consistent network partnership.</div>
-      </div></div></div>
+      <div class="msec" id="ms4"><div class="msec-h" onclick="document.getElementById('ms4').classList.toggle('open')">Perfecting the Invoice <span class="chev">▾</span></div>
+        <div class="msec-b"><div class="msec-inner">
+          <div class="inv-part"><div class="ip-n">1</div><div><div class="ip-t">Patient &amp; Provider</div><div class="ip-d">Client Name, who provided the service</div></div></div>
+          <div class="inv-part"><div class="ip-n">2</div><div><div class="ip-t">Date &amp; Time Log</div><div class="ip-d">Date of service, exact start/end times</div></div></div>
+          <div class="inv-part"><div class="ip-n">3</div><div><div class="ip-t">Unit Conversion</div><div class="ip-d">Hours converted to units: 4 hours = 1 unit</div></div></div>
+          <div class="inv-part"><div class="ip-n">4</div><div><div class="ip-t">Care Details</div><div class="ip-d">Specific ADLs/IADLs provided</div></div></div>
+          <div class="inv-part"><div class="ip-n">5</div><div><div class="ip-t">Attestation</div><div class="ip-d">Partner signature / attestation</div></div></div>
+          <button class="geo-btn" style="background:#0a3d6e" onclick="window.open('https://medbetterhealthorg-my.sharepoint.com/:b:/g/personal/dr_erik_medbetterhealth_org/IQCbadDZozZfQYTTuOUEya1eAe8atogPf-VculDb4gGR_aE?e=UBelyJ','_blank')">📄 View Example Invoice</button>
+        </div></div></div>
+
+      <div class="msec" id="ms5"><div class="msec-h" onclick="document.getElementById('ms5').classList.toggle('open')">Submitting Your Invoice <span class="chev">▾</span></div>
+        <div class="msec-b"><div class="msec-inner">
+          <div class="rule">Submit all completed timesheets and invoices.</div>
+          <div class="submit-box">Route all documentation directly to:<div class="se">invoices@MedBetterHealth.org</div></div>
+          <div class="pay-note">💵 <strong>Payment timing:</strong> Payment is issued <strong>30 days from the date we receive your invoice.</strong></div>
+          <div style="font-size:12.5px;color:#5f7387;text-align:center;margin-top:10px">Clean, compliant invoices ensure rapid processing and consistent network partnership.</div>
+        </div></div></div>
+    </div>
+
+    <!-- ===== TAB 2: ADULT DAY CARE — GUIDE MODEL ===== -->
+    <div class="manual-pane" id="pane-adc">
+      <div class="msec open" id="ad1"><div class="msec-h" onclick="document.getElementById('ad1').classList.toggle('open')">Adult Day Care — Base Rate &amp; Covered Days <span class="chev">▾</span></div>
+        <div class="msec-b"><div class="msec-inner">
+          <div class="comp-grid">
+            <div class="comp"><div class="cl">Base Rate / Day</div><div class="cv">$104</div><div class="cd">Base allowance per adult day care day</div></div>
+            <div class="comp"><div class="cl">Annual Respite Budget</div><div class="cv">$2,625</div><div class="cd">Medicare annual respite allowance</div></div>
+            <div class="comp"><div class="cl">Estimated Covered Days</div><div class="cv">25 days</div><div class="cd">$2,625 ÷ $104 = 25.24 days</div></div>
+          </div>
+          <div class="rule"><strong>Calculation:</strong> $2,625 ÷ $104 = 25.24 days</div>
+          <div class="rule"><strong>Actual reimbursement:</strong> Adjusted based on the applicable GAF.</div>
+          <div class="warn">⚠️ Important distinction: the $104 base rate is used to calculate the number of covered days; the GAF-adjusted rate determines the payment amount.</div>
+        </div></div></div>
+
+      <div class="msec" id="ad2"><div class="msec-h" onclick="document.getElementById('ad2').classList.toggle('open')">How GAF Affects Reimbursement <span class="chev">▾</span></div>
+        <div class="msec-b"><div class="msec-inner">
+          <div class="rule">For example, if the adult day care GAF-adjusted rate is $108.06 per 8-hour day:</div>
+          <div class="rule">• Base rate: $104 per day</div>
+          <div class="rule">• GAF-adjusted rate: $108.06 per day</div>
+          <div class="rule">• 25 days × $108.06 = $2,701.50 in estimated reimbursement</div>
+          <div class="rule">• Annual respite cap tracking: 25 days × $104 = $2,600 in base dollars</div>
+          <div class="warn">⚠️ CMS's 2026 payment methodology confirms respite payments are made in GAF-adjusted dollars, but the annual cap is tracked in base dollars.</div>
+          <div class="rule">For precise tracking, use the base amount to calculate the remaining annual allowance, rather than subtracting the GAF-adjusted payment from the cap.</div>
+        </div></div></div>
+
+      <div class="msec" id="ad3"><div class="msec-h" onclick="document.getElementById('ad3').classList.toggle('open')">Additional Eligibility &amp; Billing Rules <span class="chev">▾</span></div>
+        <div class="msec-b"><div class="msec-inner">
+          <div class="rule">• The patient must be eligible for GUIDE Respite Services, generally in the moderate- or high-complexity tier.</div>
+          <div class="rule">• Adult day center respite uses HCPCS G0530, an 8-hour unit.</div>
+          <div class="rule">• The service must meet the applicable unit requirements and be provided through an eligible, properly contracted provider.</div>
+          <div class="rule">• Patients residing in residential care communities, including assisted living facilities, are not eligible for GUIDE Respite Services beginning July 1, 2026, even if they remain eligible for other GUIDE services. Memory care unit residents are ineligible for GUIDE altogether.</div>
+          <div class="warn">⚠️ Correction to the calculation: $2,625 ÷ $104 = 25.24 days mathematically, but 25 full days consume $2,600 of the base-dollar allowance, leaving $25. Whether any partial additional unit can be billed depends on CMS billing requirements — do not automatically count it as a 26th covered day.</div>
+        </div></div></div>
+    </div>
+
+    <!-- ===== TAB 3: SHORT-TERM FACILITIES ===== -->
+    <div class="manual-pane" id="pane-stf">
+      <div class="msec open" id="st1"><div class="msec-h" onclick="document.getElementById('st1').classList.toggle('open')">Annual Respite Cap &amp; Rates <span class="chev">▾</span></div>
+        <div class="msec-b"><div class="msec-inner">
+          <div class="comp-grid">
+            <div class="comp"><div class="cl">Base Rate / 24-hr Unit</div><div class="cv">$321</div><div class="cd">Per 24-hour unit (used for cap tracking)</div></div>
+            <div class="comp"><div class="cl">Annual Respite Cap</div><div class="cv">$2,625</div><div class="cd">Per eligible patient</div></div>
+            <div class="comp"><div class="cl">Max Covered Days</div><div class="cv">8 days</div><div class="cd">Full 24-hour units at the base rate</div></div>
+          </div>
+          <div class="rule"><strong>Performance year:</strong> July 1, 2026 – June 30, 2027.</div>
+          <div class="rule"><strong>GAF-adjusted rate:</strong> varies based on the applicable Geographic Adjustment Factor (GAF).</div>
+        </div></div></div>
+
+      <div class="msec" id="st2"><div class="msec-h" onclick="document.getElementById('st2').classList.toggle('open')">Calculation of Covered Days <span class="chev">▾</span></div>
+        <div class="msec-b"><div class="msec-inner">
+          <div class="rule">The annual cap is tracked using the base rate of $321 per 24-hour unit.</div>
+          <div class="rule">• Maximum full 24-hour units at the base rate: 8 days.</div>
+          <div class="rule">• At a GAF-adjusted rate of $333.52 per 24-hour unit: 8 × $333.52 = $2,668.16 estimated reimbursement.</div>
+          <div class="warn">⚠️ The annual cap is tracked using the base rate, while reimbursement is adjusted based on the applicable GAF. Any partial or additional units must comply with CMS billing requirements.</div>
+        </div></div></div>
+
+      <div class="msec" id="st3"><div class="msec-h" onclick="document.getElementById('st3').classList.toggle('open')">Invoice Submission &amp; Payment <span class="chev">▾</span></div>
+        <div class="msec-b"><div class="msec-inner">
+          <div class="rule">Once services have been provided, send the invoice to:</div>
+          <div class="submit-box">Route all documentation directly to:<div class="se">invoices@MedBetterHealth.org</div></div>
+          <div class="pay-note">💵 <strong>Payment timing:</strong> processed within <strong>30 days of receiving the invoice</strong>, subject to verification and applicable program requirements.</div>
+        </div></div></div>
+    </div>
   </div>`;
+}
+
+function switchManualTab(id){
+  ['home','adc','stf'].forEach(k=>{
+    var pane=document.getElementById('pane-'+k); if(pane) pane.classList.toggle('active', k===id);
+    var tab=document.getElementById('mtab-'+k); if(tab) tab.classList.toggle('active', k===id);
+  });
 }
 
 function openStep(n){
